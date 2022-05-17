@@ -19,19 +19,19 @@ class Lox {
   }
 
   static void runFile(String path) throws IOException {
-    byte[] bytes = Files.readAllBytes(Paths.get(path));
+    var bytes = Files.readAllBytes(Paths.get(path));
     run(new String(bytes, Charset.defaultCharset()));
     if (hadError)
       System.exit(65);
   }
 
   static void runPrompt() throws IOException {
-    InputStreamReader input = new InputStreamReader(System.in);
-    BufferedReader reader = new BufferedReader(input);
+    var input = new InputStreamReader(System.in);
+    var reader = new BufferedReader(input);
 
     for (;;) {
       System.out.print("> ");
-      String line = reader.readLine();
+      var line = reader.readLine();
       if (line == null || line.equals(""+(char)0x04))
         break;
       run(line);
@@ -40,11 +40,11 @@ class Lox {
   }
 
   static void run(String source) {
-    Scanner scanner = new Scanner(source);
+    var scanner = new Scanner(source);
 
-    List<Token> tokens = scanner.scanTokens();
+    var tokens = scanner.scanTokens();
 
-    for (Token token : tokens) {
+    for (var token : tokens) {
       System.out.println(token);
     }
   }
@@ -183,9 +183,65 @@ class Scanner {
         string();
         break;
       default:
-        Lox.error(line, "Unexpected character.");
+        if(isDigit(c)){
+          number();
+        }else if(isAlpha(c)){
+          identifier();
+        }else{
+          Lox.error(line, "Unexpected character.");
+        }
         break;
     }
+  }
+  void identifier(){
+    while(isAlphaNumeric(peek())) advance();
+    var text=source.substring(start, current);
+    var type=keywords.get(text);
+    if(type==null) type=IDENTIFIER;
+    addToken(IDENTIFIER);
+  }
+  boolean isAlpha(char c){
+    return (c>='a'&& c<='z')||
+      (c>='A'&& c<='Z')||
+      c=='_';
+  }
+  boolean isAlphaNumeric(char c){
+    return isAlpha(c)||isDigit(c);
+  }
+  static Map<String, TokenType> keywords;
+  static{
+    keywords=new HashMap<>();
+    keywords.put("and", AND);
+    keywords.put("class", CLASS);
+    keywords.put("else", ELSE);
+    keywords.put("false", FALSE);
+    keywords.put("for", FOR);
+    keywords.put("fun", FUN);
+    keywords.put("if", IF);
+    keywords.put("nil", NIL);
+    keywords.put("or", OR);
+    keywords.put("print", PRINT);
+    keywords.put("return", RETURN);
+    keywords.put("super", SUPER);
+    keywords.put("this", THIS);
+    keywords.put("true", TRUE);
+    keywords.put("var", VAR);
+    keywords.put("while", WHILE);
+  }
+  boolean isDigit(char c){
+    return c>='0' && c<='9';
+  }
+  void number(){
+    while(isDigit(peek())) advance();
+    if(peek()=='.' && isDigit(peekNext())){
+      advance();
+      while(isDigit(peek())) advance();
+    }
+    addToken(NUMBER, Double.parseDouble(source.substring(start, current)));
+  }
+  char peekNext(){
+    if(current+1>=source.length()) return '\0';
+    return source.charAt(current+1);
   }
   void string(){
     while(peek() != '"' && !isAtEnd()){
@@ -222,7 +278,7 @@ class Scanner {
   }
 
   void addToken(TokenType type, Object literal) {
-    String text = source.substring(start, current);
+    var text = source.substring(start, current);
     tokens.add(new Token(type, text, literal, line));
   }
 }
