@@ -3,7 +3,7 @@
 
   <groupId>sodacris</groupId>
   <artifactId>mylox</artifactId>
-  <version>1.0</version>
+  <version>trunk</version>
   <packaging>jar</packaging>
 
   <name>mylox</name>
@@ -11,8 +11,8 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-    <src.dir>mylox</src.dir>
-    <exec.mainClass>Lox</exec.mainClass>
+    <src.dir></src.dir>
+    <exec.mainClass>lox.Lox</exec.mainClass>
 
     <maven.compiler.source>11</maven.compiler.source>
     <maven.compiler.target>11</maven.compiler.target>

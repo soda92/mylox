@@ -1,11 +1,12 @@
+package lox;
 import java.io.*;
 import java.nio.charset.*;
 import java.nio.file.*;
 import java.util.*;
 
-import static TokenType.*;
+import static lox.TokenType.*;
 
-public class Lox {
+class Lox {
   public static void main(String[] args) throws IOException {
     if (args.length > 1) {
       System.out.println("Usage: jlox [script]");
@@ -17,28 +18,28 @@ public class Lox {
     }
   }
 
-  private static void runFile(String path) throws IOException {
+  static void runFile(String path) throws IOException {
     byte[] bytes = Files.readAllBytes(Paths.get(path));
     run(new String(bytes, Charset.defaultCharset()));
     if (hadError)
       System.exit(65);
   }
 
-  private static void runPrompt() throws IOException {
+  static void runPrompt() throws IOException {
     InputStreamReader input = new InputStreamReader(System.in);
     BufferedReader reader = new BufferedReader(input);
 
     for (;;) {
       System.out.print("> ");
       String line = reader.readLine();
-      if (line == null)
+      if (line == null || line.equals(""+(char)0x04))
         break;
       run(line);
       hadError = false;
     }
   }
 
-  private static void run(String source) {
+  static void run(String source) {
     Scanner scanner = new Scanner(source);
 
     List<Token> tokens = scanner.scanTokens();
@@ -52,7 +53,7 @@ public class Lox {
     report(line, "", message);
   }
 
-  private static void report(int line, String where, String message) {
+  static void report(int line, String where, String message) {
     System.err.println(
         "[line " + line + "] Error" + where + ": " + message);
     hadError = true;
@@ -72,14 +73,14 @@ enum TokenType {
   AND, CLASS, ELSE, FALSE, FUN, FOR, IF, NIL, OR,
   PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE
 
-  , EOF
+    , EOF
 }
 
 class Token {
-  final TokenType type;
-  final String lexeme;
-  final Object literal;
-  final int line;
+  TokenType type;
+  String lexeme;
+  Object literal;
+  int line;
 
   Token(TokenType type, String lexeme, Object literal, int line) {
     this.type = type;
@@ -95,8 +96,8 @@ class Token {
 }
 
 class Scanner {
-  private final String source;
-  private final List<Token> tokens = new ArrayList<>();
+  String source;
+  List<Token> tokens = new ArrayList<>();
 
   Scanner(String source) {
     this.source = source;
@@ -112,15 +113,15 @@ class Scanner {
     return tokens;
   }
 
-  private int start = 0;
-  private int current = 0;
-  private int line = 1;
+  int start = 0;
+  int current = 0;
+  int line = 1;
 
-  private boolean isAtEnd() {
+  boolean isAtEnd() {
     return current >= source.length();
   }
 
-  private void scanToken() {
+  void scanToken() {
     char c = advance();
     switch (c) {
       case '(':
@@ -153,18 +154,74 @@ class Scanner {
       case '*':
         addToken(STAR);
         break;
+      case '!':
+        addToken(match('=') ? BANG_EQUAL : BANG);
+        break;
+      case '<':
+        addToken(match('=') ? LESS_EQUAL : LESS);
+        break;
+      case '>':
+        addToken(match('=') ? GREATER_EQUAL: GREATER);
+        break;
+      case '/':
+        if (match('/')) {
+          while(peek() != '\n' && !isAtEnd()) advance();
+        } else {
+          addToken(SLASH);
+        }
+        break;
+      case ' ':
+        break;
+      case '\r':
+        break;
+      case '\t':
+        break;
+      case '\n':
+        line++;
+        break;
+      case '"':
+        string();
+        break;
+      default:
+        Lox.error(line, "Unexpected character.");
+        break;
     }
   }
+  void string(){
+    while(peek() != '"' && !isAtEnd()){
+      if(peek() == '\n') line++;
+      advance();
+    }
+    if(isAtEnd()){
+      Lox.error(line, "Unterminated string.");
+      return;
+    }
+    advance();
+    String value=source.substring(start+1,current-1);
+    addToken(STRING, value);
+  }
 
-  private char advance() {
+  char peek() {
+    if (isAtEnd()) return '\0';
+    return source.charAt(current);
+  }
+
+  boolean match(char expected) {
+    if(isAtEnd()) return false;
+    if (source.charAt(current) != expected) return false;
+    current++;
+    return true;
+  }
+
+  char advance() {
     return source.charAt(current++);
   }
 
-  private void addToken(TokenType type) {
+  void addToken(TokenType type) {
     addToken(type, null);
   }
 
-  private void addToken(TokenType type, Object literal) {
+  void addToken(TokenType type, Object literal) {
     String text = source.substring(start, current);
     tokens.add(new Token(type, text, literal, line));
   }
