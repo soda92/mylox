@@ -41,9 +41,7 @@ class Lox {
 
   static void run(String source) {
     var scanner = new Scanner(source);
-
     var tokens = scanner.scanTokens();
-
     for (var token : tokens) {
       System.out.println(token);
     }
@@ -122,7 +120,7 @@ class Scanner {
   }
 
   void scanToken() {
-    char c = advance();
+    var c = advance();
     switch (c) {
       case '(':
         addToken(LEFT_PAREN);
