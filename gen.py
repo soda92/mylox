@@ -20,6 +20,8 @@ def normal_replace(line) -> str:
         "@bool": "boolean",
         "@out": "System.out",
         "@err": "System.err",
+        " and ": " && ",
+        " or ": " || ",
     }
     for k, v in m.items():
         line = line.replace(k, v)

@@ -1,42 +1,42 @@
 @namespace lox
 @import io,nio.charset,nio.file,util
 
-class Lox {
+class lox {
   @psv main(@str[] args) @io_throw {
     if (args.length > 1) {
       @out.println("Usage: jlox [script]");
       System.exit(64);
     } else if (args.length == 1) {
-      runFile(args[0]);
+      run_file(args[0]);
     } else {
-      runPrompt();
+      run_prompt();
     }
   }
 
-  @sv runFile(@str path) @io_throw {
+  @sv run_file(@str path) @io_throw {
     var bytes = Files.readAllBytes(Paths.get(path));
     run(new @str(bytes, Charset.defaultCharset()));
-    if (hadError)
+    if (has_err)
       System.exit(65);
   }
 
-  @sv runPrompt() @io_throw {
+  @sv run_prompt() @io_throw {
     var input = new InputStreamReader(System.in);
     var reader = new BufferedReader(input);
 
     for (;;) {
       @out.print("> ");
       var line = reader.readLine();
-      if (line == null || line.equals(""+(char)0x04))
+      if (line == null  or  line.equals(""+(char)0x04))
         break;
       run(line);
-      hadError = false;
+      has_err = false;
     }
   }
 
   @sv run(@str source) {
     var scanner = new Scanner(source);
-    var tokens = scanner.scanTokens();
+    var tokens = scanner.scan_tokens();
     for (var token : tokens) {
       @out.println(token);
     }
@@ -49,10 +49,10 @@ class Lox {
   @sv report(int line, @str where, @str message) {
     @err.println(
         "[line " + line + "] Error" + where + ": " + message);
-    hadError = true;
+    has_err = true;
   }
 
-  static @bool hadError = false;
+  static @bool has_err = false;
 }
 
 @static enum TokenType {
@@ -87,10 +87,10 @@ class Scanner {
     this.source = source;
   }
 
-  List<Token> scanTokens() {
-    while (!isAtEnd()) {
+  List<Token> scan_tokens() {
+    while (!is_end()) {
       start = current;
-      scanToken();
+      scan_token();
     }
 
     tokens.add(new Token(EOF, "", null, line));
@@ -101,22 +101,22 @@ class Scanner {
   int current = 0;
   int line = 1;
 
-  @bool isAtEnd() {
+  @bool is_end() {
     return current >= source.length();
   }
 
-  void scanToken() {
+  void scan_token() {
     var c = advance();
     switch (c) {
-      @case(addToken, "(){},.-+;*");
-      case '!': addToken(match('=') ? BANG_EQUAL : BANG); break;
-      case '<': addToken(match('=') ? LESS_EQUAL : LESS); break;
-      case '>': addToken(match('=') ? GREATER_EQUAL: GREATER); break;
+      @case(add_token, "(){},.-+;*");
+      case '!': add_token(match('=') ? BANG_EQUAL : BANG); break;
+      case '<': add_token(match('=') ? LESS_EQUAL : LESS); break;
+      case '>': add_token(match('=') ? GREATER_EQUAL: GREATER); break;
       case '/':
         if (match('/')) {
-          while(peek() != '\n' && !isAtEnd()) advance();
+          while(peek() != '\n'  and !is_end()) advance();
         } else {
-          addToken(SLASH);
+          add_token(SLASH);
         }
         break;
       case ' ': break;
@@ -125,30 +125,32 @@ class Scanner {
       case '\n': line++; break;
       case '"': string(); break;
       default:
-        if(isDigit(c)){
+        if(is_digit(c)){
           number();
-        }else if(isAlpha(c)){
+        }else if(is_alpha(c)){
           identifier();
         }else{
-          Lox.error(line, "Unexpected character.");
+          lox.error(line, "Unexpected character.");
         }
         break;
     }
   }
   void identifier(){
-    while(isAlphaNumeric(peek())) advance();
-    var text=source.substring(start, current);
-    var type=keywords.get(text);
-    if(type==null) type=IDENTIFIER;
-    addToken(IDENTIFIER);
+    while(is_alnum(peek()))
+      advance();
+    var text = source.substring(start, current);
+    var type = keywords.get(text);
+    if(type == null)
+      type = IDENTIFIER;
+    add_token(IDENTIFIER);
   }
-  @bool isAlpha(char c){
-    return (c>='a'&& c<='z')||
-      (c>='A'&& c<='Z')||
+  @bool is_alpha(char c){
+    return (c>='a' and c<='z') or 
+      (c>='A' and c<='Z') or 
       c=='_';
   }
-  @bool isAlphaNumeric(char c){
-    return isAlpha(c)||isDigit(c);
+  @bool is_alnum(char c){
+    return is_alpha(c) or is_digit(c);
   }
   static Map<@str, TokenType> keywords;
   static{
@@ -157,42 +159,42 @@ class Scanner {
       "fun", "if", "nil", "or", "print", "return",
       "super", "this", "true", "var", "while");
   }
-  @bool isDigit(char c){
-    return c>='0' && c<='9';
+  @bool is_digit(char c){
+    return c>='0' and c<='9';
   }
   void number(){
-    while(isDigit(peek())) advance();
-    if(peek()=='.' && isDigit(peekNext())){
+    while(is_digit(peek())) advance();
+    if(peek()=='.' and is_digit(peek_next())){
       advance();
-      while(isDigit(peek())) advance();
+      while(is_digit(peek())) advance();
     }
-    addToken(NUMBER, Double.parseDouble(source.substring(start, current)));
+    add_token(NUMBER, Double.parseDouble(source.substring(start, current)));
   }
-  char peekNext(){
+  char peek_next(){
     if(current+1>=source.length()) return '\0';
     return source.charAt(current+1);
   }
   void string(){
-    while(peek() != '"' && !isAtEnd()){
+    while(peek() != '"' and !is_end()){
       if(peek() == '\n') line++;
       advance();
     }
-    if(isAtEnd()){
-      Lox.error(line, "Unterminated string.");
+    if(is_end()){
+      lox.error(line, "Unterminated string.");
       return;
     }
     advance();
     @str value=source.substring(start+1,current-1);
-    addToken(STRING, value);
+    add_token(STRING, value);
   }
 
   char peek() {
-    if (isAtEnd()) return '\0';
+    if (is_end()) return '\0';
     return source.charAt(current);
   }
 
   @bool match(char expected) {
-    if(isAtEnd()) return false;
+    if(is_end()) return false;
     if (source.charAt(current) != expected) return false;
     current++;
     return true;
@@ -202,11 +204,11 @@ class Scanner {
     return source.charAt(current++);
   }
 
-  void addToken(TokenType type) {
-    addToken(type, null);
+  void add_token(TokenType type) {
+    add_token(type, null);
   }
 
-  void addToken(TokenType type, Object literal) {
+  void add_token(TokenType type, Object literal) {
     var text = source.substring(start, current);
     tokens.add(new Token(type, text, literal, line));
   }

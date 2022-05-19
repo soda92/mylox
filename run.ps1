@@ -7,7 +7,7 @@ if(!(Test-Path lox)){
 }
 Move-Item *.class lox -Force
 
-jar cfm lox.jar Manifest.txt lox/*.class
+jar cfm lox.jar entry lox/*.class
 
 if($LastExitCode -ne 0){ exit $LastExitCode }
 java -jar lox.jar $args
