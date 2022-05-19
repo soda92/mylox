@@ -1,9 +1,9 @@
-py gen.py
+python gen.py
 if [ ! $? -eq 0 ]; then exit $? ; fi
 javac out.java
 if [ ! $? -eq 0 ]; then exit $? ; fi
 [ ! -d "lox" ] && mkdir lox
 mv *.class lox
-jar cfm lox.jar Manifest.txt lox/*.class
+jar cfm lox.jar entry lox/*.class
 if [ ! $? -eq 0 ]; then exit $? ; fi
 java -jar lox.jar $@
