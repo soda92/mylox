@@ -35,7 +35,7 @@ class lox {
   }
 
   @sv run(@str source) {
-    var scanner = new Scanner(source);
+    var scanner = new scanner(source);
     var tokens = scanner.scan_tokens();
     for (var token : tokens) {
       @out.println(token);
@@ -55,7 +55,7 @@ class lox {
   static @bool has_err = false;
 }
 
-@static enum TokenType {
+@static enum token_type {
   @translate_one("(){},.-+;/*");
 
   @translate("!", "!=", "=", "==", ">", ">=", "<", "<=");
@@ -69,31 +69,31 @@ class lox {
     EOF
 }
 
-class Token {
+class token {
 
-  @gen_class_member(Token,
-  "TokenType type, String lexeme, Object literal, int line");
+  @gen_class_member(token,
+  "token_type type, String lexeme, Object literal, int line");
 
   public @str to@str() {
     return type + " " + lexeme + " " + literal;
   }
 }
 
-class Scanner {
+class scanner {
   @str source;
-  List<Token> tokens = new ArrayList<>();
+  List<token> tokens = new ArrayList<>();
 
-  Scanner(@str source) {
+  scanner(@str source) {
     this.source = source;
   }
 
-  List<Token> scan_tokens() {
+  List<token> scan_tokens() {
     while (!is_end()) {
       start = current;
       scan_token();
     }
 
-    tokens.add(new Token(EOF, "", null, line));
+    tokens.add(new token(EOF, "", null, line));
     return tokens;
   }
 
@@ -152,7 +152,7 @@ class Scanner {
   @bool is_alnum(char c){
     return is_alpha(c) or is_digit(c);
   }
-  static Map<@str, TokenType> keywords;
+  static Map<@str, token_type> keywords;
   static{
     keywords=new HashMap<>();
     @INSERT_CAP(keywords, "and", "class", "else", "false", "for",
@@ -204,18 +204,18 @@ class Scanner {
     return source.charAt(current++);
   }
 
-  void add_token(TokenType type) {
+  void add_token(token_type type) {
     add_token(type, null);
   }
 
-  void add_token(TokenType type, Object literal) {
+  void add_token(token_type type, Object literal) {
     var text = source.substring(start, current);
-    tokens.add(new Token(type, text, literal, line));
+    tokens.add(new token(type, text, literal, line));
   }
 }
 
-@GEN_AST(Expr, "Binary : Expr left, Token operator, Expr right",
+@GEN_AST(Expr, "Binary : Expr left, token operator, Expr right",
           "Grouping : Expr expression",
           "Literal : Object value",
-          "Unary : Token operator, Expr right");
+          "Unary : token operator, Expr right");
 
