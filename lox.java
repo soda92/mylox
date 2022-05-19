@@ -1,10 +1,5 @@
-package lox;
-import java.io.*;
-import java.nio.charset.*;
-import java.nio.file.*;
-import java.util.*;
-
-import static lox.TokenType.*;
+@namespace lox
+@import io,nio.charset,nio.file,util
 
 class Lox {
   @psv main(@str[] args) @io_throw {
@@ -60,7 +55,7 @@ class Lox {
   static @bool hadError = false;
 }
 
-enum TokenType {
+@static enum TokenType {
   @translate_one("(){},.-+;/*");
 
   @translate("!", "!=", "=", "==", ">", ">=", "<", "<=");
@@ -76,7 +71,7 @@ enum TokenType {
 
 class Token {
 
-  @gen_class_member(Token, 
+  @gen_class_member(Token,
   "TokenType type, String lexeme, Object literal, int line");
 
   public @str to@str() {

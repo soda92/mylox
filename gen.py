@@ -193,14 +193,48 @@ def define_type(p1, class_name, fields):
     r += "  }\n"
     return r
 
+def gen_namespace(s: str) -> str:
+    ns_name = s.strip().split()[1]
+    return f"package {ns_name};\n"
 
-def transform(r: Reader) -> str:
+def gen_import(s: str) -> str:
+    pkgs = s.strip().split()[1].split(',')
     ret = ""
-    if r.current().lstrip().startswith("//"):
-        ret = r.current()
+    for i in pkgs:
+        ret += f"import java.{i}.*;\n"
+    return ret
+
+
+def transform(r: Reader, state: list[str]) -> None:
+    def match(x: str) -> bool:
+        return r.current().strip().startswith(x)
+    if match("//"):
+        state.append(r.current())
         r.advance()
-        return ret
+        return
+
     l = normal_replace(r.current())
+
+    if match("@static"):
+        line = r.current()
+        name = line.split()[-2]
+        ns = state[0].split()[-1][:-1]
+        state.insert(2, f"import static {ns}.{name}.*;\n")
+        line = line.replace("@static ", "")
+        state.append(line)
+        r.advance()
+        return
+
+    header_map = {
+        "@namespace": gen_namespace,
+        "@import": gen_import,
+    }
+    for k,v in header_map.items():
+        if match(k):
+            state.append(v(r.current()))
+            r.advance()
+            return
+
     func_map = {
         "@INSERT_CAP": gen_insert_cap,
         "@GEN_AST": gen_ast,
@@ -219,11 +253,10 @@ def transform(r: Reader) -> str:
     func = verify_cond(l)
     if func is not None:
         p1, params = r.get_params()
-        ret = func(p1, params)
+        state.append(func(p1, params))
     else:
-        ret = l
+        state.append(l)
     r.advance()
-    return ret
 
 
 if __name__ == "__main__":
@@ -231,7 +264,9 @@ if __name__ == "__main__":
     with open("lox.java", encoding="utf-8", mode="r") as f:
         lines = f.readlines()
     r = Reader(lines)
+    state:list[str] = []
+    while not r.is_end():
+        transform(r, state)
     with open("out.java", mode="w", encoding="utf-8") as f:
-        while not r.is_end():
-            t = transform(r)
+        for t in state:
             f.write(t)
