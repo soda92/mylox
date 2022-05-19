@@ -1,16 +1,13 @@
-javac lox.java
-if($LastExitCode -eq 0){
-  if(!(Test-Path lox)){
-    New-Item -ItemType Directory -Path lox | Out-Null
-  }
-  Move-Item *.class lox
+py gen.py
+if($LastExitCode -ne 0){ exit $LastExitCode }
+javac out.java
+if($LastExitCode -ne 0){ exit $LastExitCode }
+if(!(Test-Path lox)){
+  New-Item -ItemType Directory -Path lox | Out-Null
 }
-else{
-  exit $LastExitCode
-}
+Move-Item *.class lox -Force
 
 jar cfm lox.jar Manifest.txt lox/*.class
 
-if ($LastExitCode -eq 0) {
-    java -jar lox.jar $args
-}
+if($LastExitCode -ne 0){ exit $LastExitCode }
+java -jar lox.jar $args

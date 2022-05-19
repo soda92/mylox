@@ -1,14 +1,9 @@
-javac lox.java
-if [ $? -eq 0 ]
-then
-  [ ! -d "lox" ] && mkdir lox
-  mv *.class lox
-  jar cfm lox.jar Manifest.txt lox/*.class
-else
-  exit $?
-fi
-
-if [ $? -eq 0 ]
-then
-  java -jar lox.jar $@
-fi
+py gen.py
+if [ ! $? -eq 0 ]; then exit $? ; fi
+javac out.java
+if [ ! $? -eq 0 ]; then exit $? ; fi
+[ ! -d "lox" ] && mkdir lox
+mv *.class lox
+jar cfm lox.jar Manifest.txt lox/*.class
+if [ ! $? -eq 0 ]; then exit $? ; fi
+java -jar lox.jar $@

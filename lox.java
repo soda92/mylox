@@ -7,9 +7,9 @@ import java.util.*;
 import static lox.TokenType.*;
 
 class Lox {
-  public static void main(String[] args) throws IOException {
+  @psv main(@str[] args) @io_throw {
     if (args.length > 1) {
-      System.out.println("Usage: jlox [script]");
+      @out.println("Usage: jlox [script]");
       System.exit(64);
     } else if (args.length == 1) {
       runFile(args[0]);
@@ -18,19 +18,19 @@ class Lox {
     }
   }
 
-  static void runFile(String path) throws IOException {
+  @sv runFile(@str path) @io_throw {
     var bytes = Files.readAllBytes(Paths.get(path));
-    run(new String(bytes, Charset.defaultCharset()));
+    run(new @str(bytes, Charset.defaultCharset()));
     if (hadError)
       System.exit(65);
   }
 
-  static void runPrompt() throws IOException {
+  @sv runPrompt() @io_throw {
     var input = new InputStreamReader(System.in);
     var reader = new BufferedReader(input);
 
     for (;;) {
-      System.out.print("> ");
+      @out.print("> ");
       var line = reader.readLine();
       if (line == null || line.equals(""+(char)0x04))
         break;
@@ -39,65 +39,56 @@ class Lox {
     }
   }
 
-  static void run(String source) {
+  @sv run(@str source) {
     var scanner = new Scanner(source);
     var tokens = scanner.scanTokens();
     for (var token : tokens) {
-      System.out.println(token);
+      @out.println(token);
     }
   }
 
-  static void error(int line, String message) {
+  @sv error(int line, @str message) {
     report(line, "", message);
   }
 
-  static void report(int line, String where, String message) {
-    System.err.println(
+  @sv report(int line, @str where, @str message) {
+    @err.println(
         "[line " + line + "] Error" + where + ": " + message);
     hadError = true;
   }
 
-  static boolean hadError = false;
+  static @bool hadError = false;
 }
 
 enum TokenType {
-  LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,
-  COMMA, DOT, MINUS, PLUS, SEMICOLON, SLASH, STAR,
+  @translate_one("(){},.-+;/*");
 
-  BANG, BANG_EQUAL, EQUAL, EQUAL_EQUAL, GREATER, GREATER_EQUAL, LESS, LESS_EQUAL,
+  @translate("!", "!=", "=", "==", ">", ">=", "<", "<=");
 
   IDENTIFIER, STRING, NUMBER,
 
-  AND, CLASS, ELSE, FALSE, FUN, FOR, IF, NIL, OR,
-  PRINT, RETURN, SUPER, THIS, TRUE, VAR, WHILE
+  @translate("and", "class", "else", "false", "for",
+      "fun", "if", "nil", "or", "print", "return",
+      "super", "this", "true", "var", "while");
 
-    , EOF
+    EOF
 }
 
 class Token {
-  TokenType type;
-  String lexeme;
-  Object literal;
-  int line;
 
-  Token(TokenType type, String lexeme, Object literal, int line) {
-    this.type = type;
-    this.lexeme = lexeme;
-    this.literal = literal;
-    this.line = line;
-  }
+  @gen_class_member(Token, 
+  "TokenType type, String lexeme, Object literal, int line");
 
-  public String toString() {
+  public @str to@str() {
     return type + " " + lexeme + " " + literal;
   }
-
 }
 
 class Scanner {
-  String source;
+  @str source;
   List<Token> tokens = new ArrayList<>();
 
-  Scanner(String source) {
+  Scanner(@str source) {
     this.source = source;
   }
 
@@ -115,52 +106,17 @@ class Scanner {
   int current = 0;
   int line = 1;
 
-  boolean isAtEnd() {
+  @bool isAtEnd() {
     return current >= source.length();
   }
 
   void scanToken() {
     var c = advance();
     switch (c) {
-      case '(':
-        addToken(LEFT_PAREN);
-        break;
-      case ')':
-        addToken(RIGHT_PAREN);
-        break;
-      case '{':
-        addToken(LEFT_BRACE);
-        break;
-      case '}':
-        addToken(RIGHT_BRACE);
-        break;
-      case ',':
-        addToken(COMMA);
-        break;
-      case '.':
-        addToken(DOT);
-        break;
-      case '-':
-        addToken(MINUS);
-        break;
-      case '+':
-        addToken(PLUS);
-        break;
-      case ';':
-        addToken(SEMICOLON);
-        break;
-      case '*':
-        addToken(STAR);
-        break;
-      case '!':
-        addToken(match('=') ? BANG_EQUAL : BANG);
-        break;
-      case '<':
-        addToken(match('=') ? LESS_EQUAL : LESS);
-        break;
-      case '>':
-        addToken(match('=') ? GREATER_EQUAL: GREATER);
-        break;
+      @case(addToken, "(){},.-+;*");
+      case '!': addToken(match('=') ? BANG_EQUAL : BANG); break;
+      case '<': addToken(match('=') ? LESS_EQUAL : LESS); break;
+      case '>': addToken(match('=') ? GREATER_EQUAL: GREATER); break;
       case '/':
         if (match('/')) {
           while(peek() != '\n' && !isAtEnd()) advance();
@@ -168,18 +124,11 @@ class Scanner {
           addToken(SLASH);
         }
         break;
-      case ' ':
-        break;
-      case '\r':
-        break;
-      case '\t':
-        break;
-      case '\n':
-        line++;
-        break;
-      case '"':
-        string();
-        break;
+      case ' ': break;
+      case '\r': break;
+      case '\t': break;
+      case '\n': line++; break;
+      case '"': string(); break;
       default:
         if(isDigit(c)){
           number();
@@ -198,35 +147,22 @@ class Scanner {
     if(type==null) type=IDENTIFIER;
     addToken(IDENTIFIER);
   }
-  boolean isAlpha(char c){
+  @bool isAlpha(char c){
     return (c>='a'&& c<='z')||
       (c>='A'&& c<='Z')||
       c=='_';
   }
-  boolean isAlphaNumeric(char c){
+  @bool isAlphaNumeric(char c){
     return isAlpha(c)||isDigit(c);
   }
-  static Map<String, TokenType> keywords;
+  static Map<@str, TokenType> keywords;
   static{
     keywords=new HashMap<>();
-    keywords.put("and", AND);
-    keywords.put("class", CLASS);
-    keywords.put("else", ELSE);
-    keywords.put("false", FALSE);
-    keywords.put("for", FOR);
-    keywords.put("fun", FUN);
-    keywords.put("if", IF);
-    keywords.put("nil", NIL);
-    keywords.put("or", OR);
-    keywords.put("print", PRINT);
-    keywords.put("return", RETURN);
-    keywords.put("super", SUPER);
-    keywords.put("this", THIS);
-    keywords.put("true", TRUE);
-    keywords.put("var", VAR);
-    keywords.put("while", WHILE);
+    @INSERT_CAP(keywords, "and", "class", "else", "false", "for",
+      "fun", "if", "nil", "or", "print", "return",
+      "super", "this", "true", "var", "while");
   }
-  boolean isDigit(char c){
+  @bool isDigit(char c){
     return c>='0' && c<='9';
   }
   void number(){
@@ -251,7 +187,7 @@ class Scanner {
       return;
     }
     advance();
-    String value=source.substring(start+1,current-1);
+    @str value=source.substring(start+1,current-1);
     addToken(STRING, value);
   }
 
@@ -260,7 +196,7 @@ class Scanner {
     return source.charAt(current);
   }
 
-  boolean match(char expected) {
+  @bool match(char expected) {
     if(isAtEnd()) return false;
     if (source.charAt(current) != expected) return false;
     current++;
@@ -280,3 +216,9 @@ class Scanner {
     tokens.add(new Token(type, text, literal, line));
   }
 }
+
+@GEN_AST(Expr, "Binary : Expr left, Token operator, Expr right",
+          "Grouping : Expr expression",
+          "Literal : Object value",
+          "Unary : Token operator, Expr right");
+
