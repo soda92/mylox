@@ -1,4 +1,4 @@
-# pylint: disable=missing-module-docstring,missing-function-docstring,invalid-name,redefined-outer-name,missing-class-docstring
+# pylint: disable=missing-module-docstring,missing-function-docstring,invalid-name,redefined-outer-name,missing-class-docstring,logging-fstring-interpolation
 
 import logging
 
@@ -20,8 +20,14 @@ def normal_replace(line) -> str:
         "@bool": "boolean",
         "@out": "System.out",
         "@err": "System.err",
+        "@ov_p": "@Override public",
         " and ": " && ",
         " or ": " || ",
+        "@Literal": "new Expr.Literal",
+        "@Unary": "new Expr.Unary",
+        "@Binary": "new Expr.Binary",
+        "@Grouping": "new Expr.Grouping",
+        "@T": "new token",
     }
     for k, v in m.items():
         line = line.replace(k, v)
@@ -93,7 +99,7 @@ def get_tokens(s: str) -> list[str]:
     return arr
 
 
-def trans(key: str) -> str:
+def trans(key: str) -> str|None:
     m = {
         "(": "LEFT_PAREN",
         ")": "RIGHT_PAREN",
@@ -154,13 +160,25 @@ def gen_insert_cap(p1, params) -> str:
     r = "\n".join(ret) + "\n"
     return r
 
+def define_visitor(base_name: str, types: list[str]) -> str:
+    r = "  interface Visitor<R> {\n"
+
+    for t in types:
+        type_name = t.split(':')[0].strip()
+        r += f'    R visit{type_name}{base_name}({type_name} {base_name.lower()});\n'
+    r += "  }\n"
+    r += "\n"
+    return r
 
 def gen_ast(p1, params):
     ret = f"abstract class {p1} {{\n"
+    ret += define_visitor(p1, params)
     for t in params:
         class_name = t.split(":")[0].strip()
         fields = t.split(":")[1].strip()
         ret += define_type(p1, class_name, fields)
+    ret += "\n"
+    ret += "  abstract <R> R accept(Visitor<R> visitor);\n"
     ret += "}\n"
     return ret
 
@@ -181,18 +199,26 @@ def gen_class_member(class_name: str, fields: list[str]) -> str:
 
 
 def define_type(p1, class_name, fields):
+    # logger.info(f"input: {p1=} {class_name=} {fields=}")
     r = f"  static class {class_name} extends {p1} {{" + "\n"
     fields = fields.split(", ")
-    map_ = {}
     for f in fields:
         type_, name = f.split()
-        map_[type_] = name
         r += f"    {type_} {name};" + "\n"
     r += f"    {class_name}({', '.join(fields)}) {{" + "\n"
-    for _, v in map_.items():
-        r += f"      this.{v} = {v};" + "\n"
+    for f in fields:
+        _, name = f.split()
+        r += f"      this.{name} = {name};" + "\n"
     r += "    }\n"
+
+    r += "\n"
+    r += "    @Override\n"
+    r += "    <R> R accept(Visitor<R> visitor) {\n"
+    r += f"      return visitor.visit{class_name}{p1}(this);\n"
+    r += "    }\n"
+
     r += "  }\n"
+    # logger.info(f"generated: {r}")
     return r
 
 def gen_namespace(s: str) -> str:

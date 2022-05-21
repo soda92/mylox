@@ -3,6 +3,20 @@
 
 class lox {
   @psv main(@str[] args) @io_throw {
+    var expr = @Binary(
+      @Binary(
+        @Literal(1),
+        @T(PLUS, "+", null, 1),
+        @Literal(2)
+      ),
+      @T(STAR, "*", null, 1),
+      @Binary(
+        @Literal(4),
+        @T(MINUS, "-", null, 1),
+        @Literal(3)
+      )
+    );
+    //@out.println(new ast_printer_rpn().print(expr));
     if (args.length > 1) {
       @out.println("Usage: jlox [script]");
       System.exit(64);
@@ -27,7 +41,7 @@ class lox {
     for (;;) {
       @out.print("> ");
       var line = reader.readLine();
-      if (line == null  or  line.equals(""+(char)0x04))
+      if (line == null or line.contains(""+(char)0x04))
         break;
       run(line);
       has_err = false;
@@ -35,15 +49,30 @@ class lox {
   }
 
   @sv run(@str source) {
-    var scanner = new scanner(source);
-    var tokens = scanner.scan_tokens();
-    for (var token : tokens) {
-      @out.println(token);
+    var s = new scanner(source);
+    var ts = s.scan_tokens();
+    for(var t:ts){
+      @out.println(t);
     }
+    var p = new parser(ts);
+    var expr = p.parse();
+    if(has_err)
+      return;
+
+    @out.println(new ast_printer().print(expr));
   }
 
   @sv error(int line, @str message) {
     report(line, "", message);
+  }
+
+  @sv error(token t, @str m){
+    if(t.type == token_type.EOF){
+      report(t.line, " at end", m);
+    }
+    else{
+      report(t.line, " at '" + t.lexeme +"'" , m);
+    }
   }
 
   @sv report(int line, @str where, @str message) {
@@ -93,7 +122,7 @@ class scanner {
       scan_token();
     }
 
-    tokens.add(new token(EOF, "", null, line));
+    tokens.add(@T(EOF, "", null, line));
     return tokens;
   }
 
@@ -210,7 +239,7 @@ class scanner {
 
   void add_token(token_type type, Object literal) {
     var text = source.substring(start, current);
-    tokens.add(new token(type, text, literal, line));
+    tokens.add(@T(type, text, literal, line));
   }
 }
 
@@ -219,3 +248,225 @@ class scanner {
           "Literal : Object value",
           "Unary : token operator, Expr right");
 
+class ast_printer implements Expr.Visitor<@str> {
+  @str print(Expr expr){
+    return expr.accept(this);
+  }
+
+  @ov_p @str visitBinaryExpr(Expr.Binary expr){
+    return parenthesize(expr.operator.lexeme, expr.left, expr.right);
+  }
+
+  @ov_p @str visitGroupingExpr(Expr.Grouping expr){
+    return parenthesize("group", expr.expression);
+  }
+
+  @ov_p @str visitLiteralExpr(Expr.Literal expr){
+    if (expr.value == null) return "nil";
+    return expr.value.to@str();
+  }
+
+  @ov_p @str visitUnaryExpr(Expr.Unary expr){
+    return parenthesize(expr.operator.lexeme, expr.right);
+  }
+
+  @str parenthesize(@str name, Expr... exprs){
+    var builder = new StringBuilder();
+    builder.append("(").append(name);
+    for(var expr:exprs){
+      builder.append(" ");
+      builder.append(expr.accept(this));
+    }
+    builder.append(")");
+    return builder.to@str();
+  }
+}
+
+class ast_printer_rpn implements Expr.Visitor<@str> {
+  @str print(Expr expr){
+    return expr.accept(this);
+  }
+
+  @ov_p @str visitBinaryExpr(Expr.Binary expr){
+    return to_str(expr.operator.lexeme, expr.left, expr.right);
+  }
+
+  @ov_p @str visitGroupingExpr(Expr.Grouping expr){
+    return to_str("", expr.expression);
+  }
+
+  @ov_p @str visitLiteralExpr(Expr.Literal expr){
+    if (expr.value == null) return "nil";
+    return expr.value.to@str();
+  }
+
+  @ov_p @str visitUnaryExpr(Expr.Unary expr){
+    return to_str(expr.operator.lexeme, expr.right);
+  }
+
+  @str to_str(@str name, Expr... exprs){
+    var builder = new StringBuilder();
+    for(var expr:exprs){
+      builder.append(expr.accept(this));
+      builder.append(" ");
+    }
+    builder.append(name);
+    return builder.to@str();
+  }
+}
+
+class parser {
+  List<token> tokens;
+  int current = 0;
+
+  parser(List<token> tokens){
+    this.tokens = tokens;
+  }
+
+  Expr expression() {
+    return equality();
+  }
+
+  Expr equality() {
+    var expr = comparision();
+    while(match(BANG_EQUAL, EQUAL_EQUAL)){
+      var operator = previous();
+      var right = comparision();
+      expr = @Binary(expr, operator, right);
+    }
+    return expr;
+  }
+
+  @bool match(token_type... types){
+    for(var t:types){
+      if(check(t)){
+        advance();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @bool check(token_type t){
+    if(is_end()) return false;
+    else return peek().type == t;
+  }
+
+  token advance(){
+    if(!is_end()) current += 1;
+    return previous();
+  }
+
+  @bool is_end(){
+    return peek().type == EOF;
+  }
+
+  token peek(){
+    return tokens.get(current);
+  }
+
+  token previous(){
+    return tokens.get(current-1);
+  }
+
+  Expr comparision(){
+    var expr = term();
+    while(match(GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)){
+      var op = previous();
+      var right = term();
+      expr = @Binary(expr, op, right);
+    }
+    return expr;
+  }
+
+  Expr term(){
+    var expr = factor();
+    while(match(MINUS, PLUS)){
+      var op = previous();
+      var right = factor();
+      expr = @Binary(expr, op, right);
+    }
+    return expr;
+  }
+
+  Expr factor(){
+    var expr = unary();
+    while(match(SLASH, STAR)){
+      var op = previous();
+      var right = unary();
+      expr = @Binary(expr, op, right);
+    }
+    return expr;
+  }
+
+  Expr unary(){
+    if(match(BANG, BANG_EQUAL)){
+      var op = previous();
+      var right = unary();
+      return @Unary(op, right);
+    }
+    return primary();
+  }
+
+  Expr primary(){
+    if(match(FALSE))
+      return @Literal(false);
+    if(match(TRUE))
+      return @Literal(true);
+    if(match(NIL))
+      return @Literal(null);
+
+    if(match(NUMBER, STRING))
+      return @Literal(previous().literal);
+
+    if(match(LEFT_PAREN)){
+      var expr = expression();
+      consume(RIGHT_PAREN,
+          "Exprct ')' after expression.");
+      return @Grouping(expr);
+    }
+
+    throw error(peek(), "Expect expression.");
+  }
+
+  token consume(token_type t, @str message){
+    if(check(t)) return advance();
+    else throw error(peek(), message);
+  }
+
+  parse_error error(token tok, @str message){
+    lox.error(tok, message);
+    return new parse_error();
+  }
+  static class parse_error extends RuntimeException{}
+
+
+  void sync(){
+    advance();
+    while(!is_end()){
+      if(previous().type==SEMICOLON)
+        return;
+
+      switch(peek().type){
+        case CLASS:
+        case FUN:
+        case VAR:
+        case FOR:
+        case IF:
+        case WHILE:
+        case PRINT:
+        case RETURN:
+          return;
+      }
+    }
+    advance();
+  }
+
+  Expr parse(){
+    try{
+      return expression();
+    }catch(parse_error error){
+      return null;
+    }
+  }
+}
