@@ -30,8 +30,8 @@ class lox {
   @sv run_file(@str path) @io_throw {
     var bytes = Files.readAllBytes(Paths.get(path));
     run(new @str(bytes, Charset.defaultCharset()));
-    if (has_err)
-      System.exit(65);
+    if(has_err) System.exit(65);
+    if(has_rt_err) System.exit(70);
   }
 
   @sv run_prompt() @io_throw {
@@ -51,16 +51,17 @@ class lox {
   @sv run(@str source) {
     var s = new scanner(source);
     var ts = s.scan_tokens();
-    for(var t:ts){
-      @out.println(t);
-    }
+    //for(var t:ts)
+    //  @out.println(t);
     var p = new parser(ts);
     var expr = p.parse();
     if(has_err)
       return;
 
     @out.println(new ast_printer().print(expr));
+    I.interpret(expr);
   }
+  static Interpreter I=new Interpreter();
 
   @sv error(int line, @str message) {
     report(line, "", message);
@@ -74,6 +75,11 @@ class lox {
       report(t.line, " at '" + t.lexeme +"'" , m);
     }
   }
+  @sv runtime_err(runtime_err err){
+    @err.println(err.message + "\n[line "+err.t.line + "]");
+    has_rt_err = true;
+  }
+  static @bool has_rt_err=false;
 
   @sv report(int line, @str where, @str message) {
     @err.println(
@@ -468,5 +474,136 @@ class parser {
     }catch(parse_error error){
       return null;
     }
+  }
+}
+
+class Interpreter implements Expr.Visitor<Object> {
+  @ov_p Object visitLiteralExpr(Expr.Literal expr){
+    return expr.value;
+  }
+
+  @ov_p Object visitGroupingExpr(Expr.Grouping expr){
+    return eval(expr.expression);
+  }
+
+  Object eval(Expr expr){
+    return expr.accept(this);
+  }
+
+  @ov_p Object visitUnaryExpr(Expr.Unary expr){
+    var right = eval(expr.right);
+
+    switch(expr.operator.type){
+      case BANG:
+        return !is_truthy(right);
+      case MINUS:
+        check_num_oprand(expr.operator, right);
+        return -(double)right;
+    }
+
+    return null;
+  }
+
+  @bool is_truthy(Object obj){
+    if(obj == null) return false;
+    if(obj instanceof Boolean) return (@bool)obj;
+    return true;
+  }
+
+  void check_num_oprand(token op, Object oprand){
+    if(oprand instanceof Double) return;
+    throw new runtime_err(op, "Oprand must be a number.");
+  }
+
+  void check_num_oprands(token op, Object l, Object r){
+    if(op.type==SLASH and l instanceof Double and r instanceof Double and (double)r==0)
+      throw new runtime_err(op, "Right oprand must not be zero.");
+    if(l instanceof Double and r instanceof Double) return;
+    throw new runtime_err(op, "Oprands must be numbers.");
+  }
+
+  @ov_p Object visitBinaryExpr(Expr.Binary expr){
+    var left = eval(expr.left);
+    var right = eval(expr.right);
+
+    switch(expr.operator.type){
+      case MINUS:
+        check_num_oprands(expr.operator, left, right);
+        return (double)left-(double)right;
+      case SLASH:
+        check_num_oprands(expr.operator, left, right);
+        return (double)left/(double)right;
+      case STAR:
+        check_num_oprands(expr.operator, left, right);
+        return (double)left*(double)right;
+      case PLUS:
+        if(left instanceof Double and right instanceof Double)
+          return (double)left+(double)right;
+        if(left instanceof @str and right instanceof @str)
+          return (@str)left+(@str)right;
+        //throw new runtime_err(expr.operator, "Oprands must be two numbers or two strings.");
+        @str r="";
+        if(left instanceof @str){
+          r+=(double)right;
+          if(r.endsWith(".0")) r=r.substring(0, r.length()-2);
+          return (@str)left+r;
+        }
+        r+=(double)left;
+        if(r.endsWith(".0")) r=r.substring(0, r.length()-2);
+        return (@str)right+r;
+      case GREATER:
+        check_num_oprands(expr.operator, left, right);
+        return (double)left>(double)right;
+      case GREATER_EQUAL:
+        check_num_oprands(expr.operator, left, right);
+        return (double)left>=(double)right;
+      case LESS:
+        check_num_oprands(expr.operator, left, right);
+        return (double)left<(double)right;
+      case LESS_EQUAL:
+        check_num_oprands(expr.operator, left, right);
+        return (double)left<=(double)right;
+      case BANG_EQUAL:
+        return !eq(left, right);
+      case EQUAL_EQUAL:
+        return eq(left, right);
+    }
+
+    return null;
+  }
+
+  @bool eq(Object a, Object b){
+    if(a==null and b==null) return true;
+    if(a==null) return false;
+    return a.equals(b);
+  }
+
+  void interpret(Expr expr){
+    try{
+      var val = eval(expr);
+      @out.println(to_str(val));
+    }catch(runtime_err err){
+      lox.runtime_err(err);
+    }
+  }
+
+  @str to_str(Object o){
+    if(o==null) return "nil";
+    if(o instanceof Double){
+      var text=o.to@str();
+      if(text.endsWith(".0"))
+        text=text.substring(0, text.length()-2);
+      return text;
+    }
+    return o.to@str();
+  }
+}
+
+class runtime_err extends RuntimeException{
+  token t;
+  @str message;
+  runtime_err(token t, @str message){
+    this.message=message;
+    this.t=t;
   }
 }
