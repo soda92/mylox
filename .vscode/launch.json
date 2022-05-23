@@ -1,0 +1,15 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Attach to Remote Program",
+            "request": "attach",
+            "hostName": "127.0.0.1",
+            "port": "5005",
+            "preLaunchTask": "debug",
+            "sourcePaths": [
+                "."
+            ]
+        }
+    ]
+}

@@ -1,0 +1,14 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "debug",
+            "type": "shell",
+            "command": "pwsh debug.ps1",
+            "isBackground": true,
+            "problemMatcher": [
+                "$jshint"
+            ]
+        }
+    ]
+}
