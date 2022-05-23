@@ -16,9 +16,9 @@ class lox {
         @Literal(3)
       )
     );
-    //@out.println(new ast_printer_rpn().print(expr));
+    //println!(new ast_printer_rpn().print(expr));
     if (args.length > 1) {
-      @out.println("Usage: jlox [script]");
+      println!("Usage: jlox [script]");
       System.exit(64);
     } else if (args.length == 1) {
       run_file(args[0]);
@@ -39,7 +39,7 @@ class lox {
     var reader = new BufferedReader(input);
 
     for (;;) {
-      @out.print("> ");
+      print!("> ");
       var line = reader.readLine();
       if (line == null or line.contains(""+(char)0x04))
         break;
@@ -52,13 +52,13 @@ class lox {
     var s = new scanner(source);
     var ts = s.scan_tokens();
     //for(var t:ts)
-    //  @out.println(t);
+    //  println!(t);
     var p = new parser(ts);
     var expr = p.parse();
     if(has_err)
       return;
 
-    @out.println(new ast_printer().print(expr));
+    println!(new ast_printer().print(expr));
     I.interpret(expr);
   }
   static Interpreter I=new Interpreter();
@@ -68,7 +68,7 @@ class lox {
   }
 
   @sv error(token t, @str m){
-    if(t.type == token_type.EOF){
+    if(t.type == EOF){
       report(t.line, " at end", m);
     }
     else{
@@ -76,13 +76,13 @@ class lox {
     }
   }
   @sv runtime_err(runtime_err err){
-    @err.println(err.message + "\n[line "+err.t.line + "]");
+    eprintln!(err.message + "\n[line "+err.t.line + "]");
     has_rt_err = true;
   }
   static @bool has_rt_err=false;
 
   @sv report(int line, @str where, @str message) {
-    @err.println(
+    eprintln!(
         "[line " + line + "] Error" + where + ": " + message);
     has_err = true;
   }
@@ -179,14 +179,17 @@ class scanner {
       type = IDENTIFIER;
     add_token(IDENTIFIER);
   }
+
   @bool is_alpha(char c){
     return (c>='a' and c<='z') or 
       (c>='A' and c<='Z') or 
       c=='_';
   }
+
   @bool is_alnum(char c){
     return is_alpha(c) or is_digit(c);
   }
+
   static Map<@str, token_type> keywords;
   static{
     keywords=new HashMap<>();
@@ -194,9 +197,11 @@ class scanner {
       "fun", "if", "nil", "or", "print", "return",
       "super", "this", "true", "var", "while");
   }
+
   @bool is_digit(char c){
     return c>='0' and c<='9';
   }
+
   void number(){
     while(is_digit(peek())) advance();
     if(peek()=='.' and is_digit(peek_next())){
@@ -205,10 +210,12 @@ class scanner {
     }
     add_token(NUMBER, Double.parseDouble(source.substring(start, current)));
   }
+
   char peek_next(){
     if(current+1>=source.length()) return '\0';
     return source.charAt(current+1);
   }
+
   void string(){
     while(peek() != '"' and !is_end()){
       if(peek() == '\n') line++;
@@ -581,7 +588,7 @@ class Interpreter implements Expr.Visitor<Object> {
   void interpret(Expr expr){
     try{
       var val = eval(expr);
-      @out.println(to_str(val));
+      println!(to_str(val));
     }catch(runtime_err err){
       lox.runtime_err(err);
     }
