@@ -16,8 +16,12 @@ def normal_replace(line) -> str:
         "@main": "public static void main",
         "@sv": "static void",
         "@io_throw": "throws IOException",
+        "is Double": "instanceof Double",
+        "is @Bool": "instanceof Boolean",
+        "is @str": "instanceof @str",
         "@str": "String",
         "@bool": "boolean",
+        "@Bool": "Boolean",
         "eprintln!": "System.err.println",
         "println!": "System.out.println",
         "eprint!": "System.err.print",
@@ -25,6 +29,7 @@ def normal_replace(line) -> str:
         "@impl": "@Override public",
         " and ": " && ",
         " or ": " || ",
+        " is ": " == ",
         "@Literal": "new Expr.Literal",
         "@Unary": "new Expr.Unary",
         "@Binary": "new Expr.Binary",
@@ -101,7 +106,7 @@ def get_tokens(s: str) -> list[str]:
     return arr
 
 
-def trans(key: str) -> str|None:
+def trans(key: str) -> str | None:
     m = {
         "(": "LEFT_PAREN",
         ")": "RIGHT_PAREN",
@@ -128,7 +133,7 @@ def trans(key: str) -> str|None:
     return None
 
 
-def translate(p1: str, params: list[str]) -> str:
+def insert_tr(p1: str, params: list[str]) -> str:
     params.insert(0, p1)
 
     ret = ""
@@ -141,10 +146,10 @@ def translate(p1: str, params: list[str]) -> str:
     return ret + "\n"
 
 
-def translate_one(p1, params) -> str:
+def insert_tr_1(p1, params) -> str:
     p1 = list(p1)
     p1, params = p1[0], p1[1:]
-    r = translate(p1, params)
+    r = insert_tr(p1, params)
     return r
 
 
@@ -162,15 +167,17 @@ def gen_insert_cap(p1, params) -> str:
     r = "\n".join(ret) + "\n"
     return r
 
+
 def define_visitor(base_name: str, types: list[str]) -> str:
     r = "  interface Visitor<R> {\n"
 
     for t in types:
-        type_name = t.split(':')[0].strip()
-        r += f'    R visit{type_name}{base_name}({type_name} {base_name.lower()});\n'
+        type_name = t.split(":")[0].strip()
+        r += f"    R visit{type_name}{base_name}({type_name} {base_name.lower()});\n"
     r += "  }\n"
     r += "\n"
     return r
+
 
 def gen_ast(p1, params):
     ret = f"abstract class {p1} {{\n"
@@ -223,12 +230,14 @@ def define_type(p1, class_name, fields):
     # logger.info(f"generated: {r}")
     return r
 
+
 def gen_namespace(s: str) -> str:
     ns_name = s.strip().split()[1]
     return f"package {ns_name};\n"
 
+
 def gen_import(s: str) -> str:
-    pkgs = s.strip().split()[1].split(',')
+    pkgs = s.strip().split()[1].split(",")
     ret = ""
     for i in pkgs:
         ret += f"import java.{i}.*;\n"
@@ -238,12 +247,30 @@ def gen_import(s: str) -> str:
 def transform(r: Reader, state: list[str]) -> None:
     def match(x: str) -> bool:
         return r.current().strip().startswith(x)
+
     if match("//"):
         state.append(r.current())
         r.advance()
         return
 
+    header_map = {
+        "@namespace": gen_namespace,
+        "@import": gen_import,
+    }
+
+    for k, v in header_map.items():
+        if match(k):
+            state.append(v(r.current()))
+            r.advance()
+            return
+
     l = normal_replace(r.current())
+
+    if ":=" in l:
+        arr = l.split(":=")
+        assert len(arr) == 2
+        var_name, rest = arr[0].strip(), arr[1].strip()
+        l = f"var {var_name} = {rest}\n"
 
     if match("@static"):
         line = r.current()
@@ -255,22 +282,12 @@ def transform(r: Reader, state: list[str]) -> None:
         r.advance()
         return
 
-    header_map = {
-        "@namespace": gen_namespace,
-        "@import": gen_import,
-    }
-    for k,v in header_map.items():
-        if match(k):
-            state.append(v(r.current()))
-            r.advance()
-            return
-
     func_map = {
-        "@INSERT_CAP": gen_insert_cap,
-        "@GEN_AST": gen_ast,
+        "@insert_capval": gen_insert_cap,
+        "@gen_ast": gen_ast,
         "@gen_class_member": gen_class_member,
-        "@translate_one": translate_one,
-        "@translate": translate,
+        "@INSERT_TR_1": insert_tr_1,
+        "@INSERT_TR": insert_tr,
         "@case": case,
     }
 
@@ -294,7 +311,7 @@ if __name__ == "__main__":
     with open("lox.java", encoding="utf-8", mode="r") as f:
         lines = f.readlines()
     r = Reader(lines)
-    state:list[str] = []
+    state: list[str] = []
     while not r.is_end():
         transform(r, state)
     with open("out.java", mode="w", encoding="utf-8") as f:
