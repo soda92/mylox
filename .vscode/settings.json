@@ -1,0 +1,14 @@
+{
+    "editor.selectionHighlight": true,
+    "editor.occurrencesHighlight": false,
+    "workbench.statusBar.visible": false,
+    "zenMode.hideActivityBar": true,
+    "workbench.activityBar.visible": false,
+    "workbench.editor.titleScrollbarSizing": "default",
+    "zenMode.hideStatusBar": true,
+    "zenMode.fullScreen": false,
+    "window.title": "${dirty}${activeEditorShort}${separator}${rootName}${separator}",
+    "workbench.editor.decorations.badges": true,
+    "editor.fontFamily": "'Fira Code', 'Rec Mono SemiCasual',  'Noto Sans Mono CJK SC', Consolas, 'Courier New', monospace",
+    "editor.renderWhitespace": "trailing"
+}
