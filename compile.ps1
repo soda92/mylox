@@ -8,7 +8,7 @@ if(!(Test-Path lox)){
   New-Item -ItemType Directory -Path lox | Out-Null
 }
 Move-Item *.class lox -Force
-Copy-Item out.java lox
+Move-Item out.java lox -Force
 
 jar cfm lox.jar entry lox/*.class
 # Remove-Item -Recurse lox

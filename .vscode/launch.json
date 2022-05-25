@@ -2,8 +2,9 @@
     "configurations": [
         {
             "type": "java",
-            "name": "Attach to Remote Program",
+            "name": "java launch",
             "request": "attach",
+            "projectName": "proj",
             "hostName": "127.0.0.1",
             "port": "5005",
             "preLaunchTask": "debug",

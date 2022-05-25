@@ -2,7 +2,7 @@
 @import io,nio.charset,nio.file,util
 
 class lox {
-  @psv main(@str[] args) @io_throw {
+  @main(@str[] args) @io_throw {
     var expr = @Binary(
       @Binary(
         @Literal(1),
@@ -51,15 +51,14 @@ class lox {
   @sv run(@str source) {
     var s = new scanner(source);
     var ts = s.scan_tokens();
-    //for(var t:ts)
-    //  println!(t);
+    // for(var t:ts)
+    //   println!(t);
     var p = new parser(ts);
-    var expr = p.parse();
-    if(has_err)
-      return;
-
-    println!(new ast_printer().print(expr));
-    I.interpret(expr);
+    if(has_err) return;
+    var stmts = p.parse();
+    if(has_err) return;
+    print!(new ast_printer().print(stmts));
+    I.interpret(stmts);
   }
   static Interpreter I=new Interpreter();
 
@@ -147,6 +146,7 @@ class scanner {
       case '!': add_token(match('=') ? BANG_EQUAL : BANG); break;
       case '<': add_token(match('=') ? LESS_EQUAL : LESS); break;
       case '>': add_token(match('=') ? GREATER_EQUAL: GREATER); break;
+      case '=': add_token(match('=') ? EQUAL_EQUAL : EQUAL); break;
       case '/':
         if (match('/')) {
           while(peek() != '\n'  and !is_end()) advance();
@@ -177,7 +177,7 @@ class scanner {
     var type = keywords.get(text);
     if(type == null)
       type = IDENTIFIER;
-    add_token(IDENTIFIER);
+    add_token(type);
   }
 
   @bool is_alpha(char c){
@@ -256,30 +256,66 @@ class scanner {
   }
 }
 
-@GEN_AST(Expr, "Binary : Expr left, token operator, Expr right",
-          "Grouping : Expr expression",
-          "Literal : Object value",
-          "Unary : token operator, Expr right");
+@GEN_AST(Expr,
+"Binary : Expr left, token operator, Expr right",
+"Grouping : Expr expression",
+"Literal : Object value",
+"Unary : token operator, Expr right",
+"Variable : token name");
 
-class ast_printer implements Expr.Visitor<@str> {
+@GEN_AST(Stmt,
+"Expression : Expr expr",
+"Print : Expr expr",
+"Var : token name, Expr val");
+
+class ast_printer implements Expr.Visitor<@str>, Stmt.Visitor<@str> {
   @str print(Expr expr){
     return expr.accept(this);
   }
 
-  @ov_p @str visitBinaryExpr(Expr.Binary expr){
+  @str print(List<Stmt> stmts){
+    var sb=new StringBuilder();
+    for(var stmt:stmts){
+      var val = stmt.accept(this);
+      if(val==null) continue;
+      sb.append(val);
+      sb.append('\n');
+    }
+    return sb.to@str();
+  }
+
+  @impl @str visitExpressionStmt(Stmt.Expression stmt){
+    return null;
+  }
+
+  @impl @str visitPrintStmt(Stmt.Print stmt){
+    return stmt.expr.accept(this);
+  }
+
+  @impl @str visitVarStmt(Stmt.Var stmt){
+    return "(define "+ stmt.name.lexeme + " " + stmt.val.accept(this) + ")";
+  }
+
+  @impl @str visitVariableExpr(Expr.Variable expr){
+    return expr.name.lexeme;
+  }
+
+  @impl @str visitBinaryExpr(Expr.Binary expr){
     return parenthesize(expr.operator.lexeme, expr.left, expr.right);
   }
 
-  @ov_p @str visitGroupingExpr(Expr.Grouping expr){
-    return parenthesize("group", expr.expression);
+  @impl @str visitGroupingExpr(Expr.Grouping expr){
+    return expr.expression.accept(this);
   }
 
-  @ov_p @str visitLiteralExpr(Expr.Literal expr){
+  @impl @str visitLiteralExpr(Expr.Literal expr){
     if (expr.value == null) return "nil";
-    return expr.value.to@str();
+    var r = expr.value.to@str();
+    if(r.endsWith(".0")) r=r.substring(0, r.length()-2);
+    return r;
   }
 
-  @ov_p @str visitUnaryExpr(Expr.Unary expr){
+  @impl @str visitUnaryExpr(Expr.Unary expr){
     return parenthesize(expr.operator.lexeme, expr.right);
   }
 
@@ -300,21 +336,29 @@ class ast_printer_rpn implements Expr.Visitor<@str> {
     return expr.accept(this);
   }
 
-  @ov_p @str visitBinaryExpr(Expr.Binary expr){
+  @impl @str visitBinaryExpr(Expr.Binary expr){
     return to_str(expr.operator.lexeme, expr.left, expr.right);
   }
 
-  @ov_p @str visitGroupingExpr(Expr.Grouping expr){
+  @impl @str visitGroupingExpr(Expr.Grouping expr){
     return to_str("", expr.expression);
   }
 
-  @ov_p @str visitLiteralExpr(Expr.Literal expr){
+  @impl @str visitLiteralExpr(Expr.Literal expr){
     if (expr.value == null) return "nil";
     return expr.value.to@str();
   }
 
-  @ov_p @str visitUnaryExpr(Expr.Unary expr){
+  @impl @str visitUnaryExpr(Expr.Unary expr){
     return to_str(expr.operator.lexeme, expr.right);
+  }
+
+  // @impl @str visitVarStmt(Stmt.Var stmt){
+  //   return null;
+  // }
+
+  @impl @str visitVariableExpr(Expr.Variable expr){
+    return null;
   }
 
   @str to_str(@str name, Expr... exprs){
@@ -432,6 +476,9 @@ class parser {
     if(match(NUMBER, STRING))
       return @Literal(previous().literal);
 
+    if(match(IDENTIFIER))
+      return new Expr.Variable(previous());
+
     if(match(LEFT_PAREN)){
       var expr = expression();
       consume(RIGHT_PAREN,
@@ -471,25 +518,85 @@ class parser {
         case RETURN:
           return;
       }
+      advance();
     }
-    advance();
   }
 
-  Expr parse(){
+  List<Stmt> parse(){
+    List<Stmt> statements = new ArrayList<>();
+    while(!is_end()){
+      statements.add(declaration());
+    }
+    return statements;
+  }
+
+  Stmt declaration(){
     try{
-      return expression();
-    }catch(parse_error error){
+      if(match(VAR)) return var_decl();
+      return statement();
+    }catch(parse_error err){
+      sync();
       return null;
     }
   }
+
+  Stmt var_decl(){
+    var name = consume(IDENTIFIER,
+        "Expect variable name.");
+    Expr val = null;
+    if(match(EQUAL)) val = expression();
+    consume(SEMICOLON,
+        "Expect ';' after variable declaration.");
+    return new Stmt.Var(name, val);
+  }
+
+  Stmt statement(){
+    if(match(PRINT)) return print_stmt();
+    return expr_stmt();
+  }
+
+  Stmt print_stmt(){
+    var value = expression();
+    consume(SEMICOLON, "Expect ';' after value.");
+    return new Stmt.Print(value);
+  }
+
+  Stmt expr_stmt(){
+    var expr = expression();
+    consume(SEMICOLON, "Expect ';' after expression.");
+    return new Stmt.Expression(expr);
+  }
 }
 
-class Interpreter implements Expr.Visitor<Object> {
-  @ov_p Object visitLiteralExpr(Expr.Literal expr){
+class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
+  @impl Void visitExpressionStmt(Stmt.Expression stmt){
+    eval(stmt.expr);
+    return null;
+  }
+
+  @impl Void visitPrintStmt(Stmt.Print stmt){
+    var value = eval(stmt.expr);
+    println!(to_str(value));
+    return null;
+  }
+
+  Env env=new Env();
+  @impl Void visitVarStmt(Stmt.Var stmt){
+    Object value=null;
+    if(stmt.val!=null) value=eval(stmt.val);
+    env.define(stmt.name.lexeme, value);
+    return null;
+  }
+
+  @impl Object visitVariableExpr(Expr.Variable expr){
+    return env.get(expr.name);
+  }
+
+  @impl Object visitLiteralExpr(Expr.Literal expr){
     return expr.value;
   }
 
-  @ov_p Object visitGroupingExpr(Expr.Grouping expr){
+  @impl Object visitGroupingExpr(Expr.Grouping expr){
     return eval(expr.expression);
   }
 
@@ -497,7 +604,7 @@ class Interpreter implements Expr.Visitor<Object> {
     return expr.accept(this);
   }
 
-  @ov_p Object visitUnaryExpr(Expr.Unary expr){
+  @impl Object visitUnaryExpr(Expr.Unary expr){
     var right = eval(expr.right);
 
     switch(expr.operator.type){
@@ -529,7 +636,7 @@ class Interpreter implements Expr.Visitor<Object> {
     throw new runtime_err(op, "Oprands must be numbers.");
   }
 
-  @ov_p Object visitBinaryExpr(Expr.Binary expr){
+  @impl Object visitBinaryExpr(Expr.Binary expr){
     var left = eval(expr.left);
     var right = eval(expr.right);
 
@@ -594,6 +701,20 @@ class Interpreter implements Expr.Visitor<Object> {
     }
   }
 
+  void interpret(List<Stmt> statements){
+    try{
+      for(var stmt: statements){
+        exec(stmt);
+      }
+    }catch(runtime_err err){
+      lox.runtime_err(err);
+    }
+  }
+
+  void exec(Stmt stmt){
+    stmt.accept(this);
+  }
+
   @str to_str(Object o){
     if(o==null) return "nil";
     if(o instanceof Double){
@@ -612,5 +733,21 @@ class runtime_err extends RuntimeException{
   runtime_err(token t, @str message){
     this.message=message;
     this.t=t;
+  }
+}
+
+class Env{
+  Map<@str, Object> values = new HashMap<>();
+
+  void define(@str name, Object value){
+    values.put(name, value);
+  }
+
+  Object get(token name){
+    if(values.containsKey(name.lexeme)){
+      return values.get(name.lexeme);
+    }
+    throw new runtime_err(name,
+        "Undefined variable '"+name.lexeme+"'.");
   }
 }

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def normal_replace(line) -> str:
     m = {
-        "@psv": "public static void",
+        "@main": "public static void main",
         "@sv": "static void",
         "@io_throw": "throws IOException",
         "@str": "String",
@@ -22,7 +22,7 @@ def normal_replace(line) -> str:
         "println!": "System.out.println",
         "eprint!": "System.err.print",
         "print!": "System.out.print",
-        "@ov_p": "@Override public",
+        "@impl": "@Override public",
         " and ": " && ",
         " or ": " || ",
         "@Literal": "new Expr.Literal",
