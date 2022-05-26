@@ -10,5 +10,6 @@
     "window.title": "${dirty}${activeEditorShort}${separator}${rootName}${separator}",
     "workbench.editor.decorations.badges": true,
     "editor.fontFamily": "'Fira Code', 'Rec Mono SemiCasual',  'Noto Sans Mono CJK SC', Consolas, 'Courier New', monospace",
-    "editor.renderWhitespace": "trailing"
+    "editor.renderWhitespace": "trailing",
+    "zenMode.hideLineNumbers": true
 }

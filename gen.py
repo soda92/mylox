@@ -15,7 +15,6 @@ def normal_replace(line) -> str:
     m = {
         "@main": "public static void main",
         "@sv": "static void",
-        "@io_throw": "throws IOException",
         "is Double": "instanceof Double",
         "is @Bool": "instanceof Boolean",
         "is @str": "instanceof @str",
@@ -26,7 +25,6 @@ def normal_replace(line) -> str:
         "println!": "System.out.println",
         "eprint!": "System.err.print",
         "print!": "System.out.print",
-        "@impl": "@Override public",
         " and ": " && ",
         " or ": " || ",
         " is ": " == ",
@@ -270,7 +268,7 @@ def transform(r: Reader, state: list[str]) -> None:
         arr = l.split(":=")
         assert len(arr) == 2
         var_name, rest = arr[0].strip(), arr[1].strip()
-        l = f"var {var_name} = {rest}\n"
+        l = transfer_head_space(arr[0], f"var {var_name} = {rest}\n")
 
     if match("@static"):
         line = r.current()
@@ -282,6 +280,73 @@ def transform(r: Reader, state: list[str]) -> None:
         r.advance()
         return
 
+    if match("@io_throw"):
+        arr = l.rsplit("{")
+        assert len(arr) == 2
+        func_decl = arr[0].replace("@io_throw", "").strip()
+        l = f"{func_decl} throws IOException {{\n"
+
+    l = pipe_func(l)
+
+    global visitor_class_type_map
+    if "implements" in l:
+        parent_classes = l.split("implements")[1].replace("{", "").split(",")
+        for i in parent_classes:
+            arr = i.strip().split(".Visitor<")
+            v_class = arr[0]
+            v_type = arr[1][:-1]
+            visitor_class_type_map[v_class] = v_type
+
+    global pending_null, brace_stack
+    import re
+
+    if match("@impl"):
+        method_name = l.replace("@impl", "").replace("{", "").strip()
+        ret = re.findall(r"[A-Z][a-z]+", method_name)
+        # logger.info(f"{ret=}")
+        sub_class_name, parent_class_name = ret
+        return_type = visitor_class_type_map[parent_class_name]
+        l = transfer_head_space(
+            l,
+            f"@Override public {return_type} {method_name}"
+            + f"({parent_class_name}.{sub_class_name} {parent_class_name.lower()}) {{\n",
+        )
+        if return_type == "Void":
+            pending_null = True
+    if pending_null:
+        for c in l:
+            if c == "{":
+                brace_stack += c
+            if c == "}":
+                # breakpoint()
+                brace_stack = brace_stack[:-1]
+                if len(brace_stack) == 0:
+                    pending_null = False
+                    state.append("  " + transfer_head_space(l, "return null;\n"))
+
+    state.append(l)
+    r.advance()
+
+
+def transfer_head_space(origin: str, to: str) -> str:
+    head_spaces = 0
+    for i in range(len(origin)):
+        if origin[i] == " ":
+            head_spaces += 1
+        else:
+            break
+    return " " * head_spaces + to
+
+
+pending_null = False
+brace_stack = ""
+
+from typing import Dict
+
+visitor_class_type_map: Dict[str, str] = {}
+
+
+def pipe_func(l: str) -> str:
     func_map = {
         "@insert_capval": gen_insert_cap,
         "@gen_ast": gen_ast,
@@ -300,10 +365,9 @@ def transform(r: Reader, state: list[str]) -> None:
     func = verify_cond(l)
     if func is not None:
         p1, params = r.get_params()
-        state.append(func(p1, params))
-    else:
-        state.append(l)
-    r.advance()
+        return func(p1, params)
+
+    return l
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 @import io,nio.charset,nio.file,util
 
 class lox {
-  @main(@str[] args) @io_throw {
+  @io_throw @main(@str[] args) {
     expr := @Binary(
       @Binary(
         @Literal(1),
@@ -27,14 +27,14 @@ class lox {
     }
   }
 
-  @sv run_file(@str path) @io_throw {
+  @io_throw @sv run_file(@str path) {
     bytes := Files.readAllBytes(Paths.get(path));
     run(new @str(bytes, Charset.defaultCharset()));
     if(has_err) System.exit(65);
     if(has_rt_err) System.exit(70);
   }
 
-  @sv run_prompt() @io_throw {
+  @io_throw @sv run_prompt() {
     input := new InputStreamReader(System.in);
     reader := new BufferedReader(input);
 
@@ -141,7 +141,7 @@ class scanner {
       case '=': add_token(match('=') ? EQUAL_EQUAL : EQUAL); break;
       case '/':
         if (match('/'))
-          while(peek() != '\n'  and !is_end()) advance();
+          while(peek() != '\n' and !is_end()) advance();
         else
           add_token(SLASH);
         break;
@@ -270,38 +270,38 @@ class ast_printer implements Expr.Visitor<@str>, Stmt.Visitor<@str> {
     return sb.to@str();
   }
 
-  @impl @str visitExpressionStmt(Stmt.Expression stmt){
+  @impl visitExpressionStmt {
     return null;
   }
 
-  @impl @str visitPrintStmt(Stmt.Print stmt){
+  @impl visitPrintStmt {
     return stmt.expr.accept(this);
   }
 
-  @impl @str visitVarStmt(Stmt.Var stmt){
+  @impl visitVarStmt {
     return "(define "+ stmt.name.lexeme + " " + stmt.val.accept(this) + ")";
   }
 
-  @impl @str visitVariableExpr(Expr.Variable expr){
+  @impl visitVariableExpr {
     return expr.name.lexeme;
   }
 
-  @impl @str visitBinaryExpr(Expr.Binary expr){
+  @impl visitBinaryExpr {
     return parenthesize(expr.operator.lexeme, expr.left, expr.right);
   }
 
-  @impl @str visitGroupingExpr(Expr.Grouping expr){
+  @impl visitGroupingExpr {
     return expr.expression.accept(this);
   }
 
-  @impl @str visitLiteralExpr(Expr.Literal expr){
+  @impl visitLiteralExpr {
     if (expr.value is null) return "nil";
     r := expr.value.to@str();
     r=tool.trim(r);
     return r;
   }
 
-  @impl @str visitUnaryExpr(Expr.Unary expr){
+  @impl visitUnaryExpr {
     return parenthesize(expr.operator.lexeme, expr.right);
   }
 
@@ -322,24 +322,24 @@ class ast_printer_rpn implements Expr.Visitor<@str> {
     return expr.accept(this);
   }
 
-  @impl @str visitBinaryExpr(Expr.Binary expr){
+  @impl visitBinaryExpr {
     return to_str(expr.operator.lexeme, expr.left, expr.right);
   }
 
-  @impl @str visitGroupingExpr(Expr.Grouping expr){
+  @impl visitGroupingExpr {
     return to_str("", expr.expression);
   }
 
-  @impl @str visitLiteralExpr(Expr.Literal expr){
+  @impl visitLiteralExpr {
     if (expr.value is null) return "nil";
     return expr.value.to@str();
   }
 
-  @impl @str visitUnaryExpr(Expr.Unary expr){
+  @impl visitUnaryExpr {
     return to_str(expr.operator.lexeme, expr.right);
   }
 
-  @impl @str visitVariableExpr(Expr.Variable expr){
+  @impl visitVariableExpr {
     return null;
   }
 
@@ -468,7 +468,7 @@ class parser {
 
   token consume(token_type t, @str message){
     if(check(t)) return advance();
-    else throw error(peek(), message);
+    throw error(peek(), message);
   }
 
   parse_error error(token tok, @str message){
@@ -541,34 +541,31 @@ class parser {
 }
 
 class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
-  @impl Void visitExpressionStmt(Stmt.Expression stmt){
+  @impl visitExpressionStmt {
     eval(stmt.expr);
-    return null;
   }
 
-  @impl Void visitPrintStmt(Stmt.Print stmt){
+  @impl visitPrintStmt {
     value := eval(stmt.expr);
     println!(to_str(value));
-    return null;
   }
 
-  Env env=new Env();
-  @impl Void visitVarStmt(Stmt.Var stmt){
+  Env env = new Env();
+  @impl visitVarStmt {
     Object value=null;
     if(stmt.val!=null) value=eval(stmt.val);
     env.define(stmt.name.lexeme, value);
-    return null;
   }
 
-  @impl Object visitVariableExpr(Expr.Variable expr){
+  @impl visitVariableExpr {
     return env.get(expr.name);
   }
 
-  @impl Object visitLiteralExpr(Expr.Literal expr){
+  @impl visitLiteralExpr {
     return expr.value;
   }
 
-  @impl Object visitGroupingExpr(Expr.Grouping expr){
+  @impl visitGroupingExpr {
     return eval(expr.expression);
   }
 
@@ -576,7 +573,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     return expr.accept(this);
   }
 
-  @impl Object visitUnaryExpr(Expr.Unary expr){
+  @impl visitUnaryExpr {
     right := eval(expr.right);
 
     switch(expr.operator.type){
@@ -600,12 +597,16 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
   }
 
   void check_num_oprands(token op, Object l, Object r){
-    if(op.type is SLASH and l is Double and r is Double and (double)r is 0) throw new runtime_err(op, "Right oprand must not be zero.");
+    if(op.type is SLASH and 
+    l is Double and 
+    r is Double and 
+    (double)r is 0) 
+    throw new runtime_err(op, "Right oprand must not be zero.");
     if(l is Double and r is Double) return;
     throw new runtime_err(op, "Oprands must be numbers.");
   }
 
-  @impl Object visitBinaryExpr(Expr.Binary expr){
+  @impl visitBinaryExpr {
     left := eval(expr.left);
     right := eval(expr.right);
 
