@@ -32,7 +32,9 @@ def normal_replace(line) -> str:
         "@Unary": "new Expr.Unary",
         "@Binary": "new Expr.Binary",
         "@Grouping": "new Expr.Grouping",
+        "@Variable": "new Expr.Variable",
         "@T": "new token",
+        "to_double": "Double.parseDouble",
     }
     for k, v in m.items():
         line = line.replace(k, v)
@@ -45,7 +47,7 @@ class Reader:
         self.index = 0
 
     def current(self) -> str:
-        return self.lines[self.index]
+        return normal_replace(self.lines[self.index])
 
     def advance(self) -> None:
         self.index += 1
@@ -262,7 +264,7 @@ def transform(r: Reader, state: list[str]) -> None:
             r.advance()
             return
 
-    l = normal_replace(r.current())
+    l = r.current()
 
     if ":=" in l:
         arr = l.split(":=")
@@ -290,6 +292,9 @@ def transform(r: Reader, state: list[str]) -> None:
 
     global visitor_class_type_map
     if "implements" in l:
+        while "{" not in l:
+            r.advance()
+            l += r.current()
         parent_classes = l.split("implements")[1].replace("{", "").split(",")
         for i in parent_classes:
             arr = i.strip().split(".Visitor<")

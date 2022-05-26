@@ -98,7 +98,7 @@ class lox {
 
 class token {
   @gen_class_member(token,
-  "token_type type, String lexeme, Object literal, int line");
+  "token_type type, @str lexeme, Object literal, int line");
 
   public @str to@str() {
     return type + " " + lexeme + " " + literal;
@@ -194,7 +194,7 @@ class scanner {
       advance();
       while(is_digit(peek())) advance();
     }
-    add_token(NUMBER, Double.parseDouble(source.substring(start, current)));
+    add_token(NUMBER, to_double(source.substring(start, current)));
   }
 
   char peek_next(){
@@ -454,7 +454,7 @@ class parser {
 
     if(match(NUMBER, STRING)) return @Literal(previous().literal);
 
-    if(match(IDENTIFIER)) return new Expr.Variable(previous());
+    if(match(IDENTIFIER)) return @Variable(previous());
 
     if(match(LEFT_PAREN)){
       expr := expression();
@@ -540,7 +540,8 @@ class parser {
   }
 }
 
-class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
+class Interpreter implements
+  Expr.Visitor<Object>, Stmt.Visitor<Void> {
   @impl visitExpressionStmt {
     eval(stmt.expr);
   }
@@ -706,7 +707,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 }
 
 class runtime_err extends RuntimeException{
-  @gen_class_member(runtime_err, "token t, String message");
+  @gen_class_member(runtime_err, "token t, @str message");
 }
 
 class Env{
