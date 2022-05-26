@@ -34,6 +34,10 @@ class lox {
     if(has_rt_err) System.exit(70);
   }
 
+  static @bool ctrl_d_in_str(@str s){
+    return s.contains(String.valueOf((char)0x04));
+  }
+
   @io_throw @sv run_prompt() {
     input := new InputStreamReader(System.in);
     reader := new BufferedReader(input);
@@ -41,7 +45,7 @@ class lox {
     for (;;) {
       print!("> ");
       line := reader.readLine();
-      if (line is null or line.contains(""+(char)0x04))
+      if (line is null or ctrl_d_in_str(line))
         break;
       run(line);
       has_err = false;
