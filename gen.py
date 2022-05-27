@@ -278,7 +278,7 @@ def transform(
     if match("//"):
         state.append(reader.current())
         reader.advance()
-        return
+        return pending_null, brace_stack
 
     header_map = {
         "@namespace": gen_namespace,
@@ -289,7 +289,7 @@ def transform(
         if match(k):
             state.append(val(reader.current()))
             reader.advance()
-            return
+            return pending_null, brace_stack
 
     line = reader.current()
 
@@ -310,7 +310,8 @@ def transform(
         line = line.replace("@static ", "")
         state.append(line)
         reader.advance()
-        return
+        return pending_null, brace_stack
+
 
     if match("@io_throw"):
         arr = line.rsplit("{")
