@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 python gen.py
 if [ ! $? -eq 0 ]; then exit $? ; fi
 javac out.java
