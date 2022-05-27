@@ -3,17 +3,17 @@
 
 class lox {
   @io_throw @main(@str[] args) {
-    expr := @Binary(
-      @Binary(
-        @Literal(1),
-        @T(PLUS, "+", null, 1),
-        @Literal(2)
+    expr := Expr.Binary(
+      Expr.Binary(
+        Expr.Literal(1),
+        Token(PLUS, "+", null, 1),
+        Expr.Literal(2)
       ),
-      @T(STAR, "*", null, 1),
-      @Binary(
-        @Literal(4),
-        @T(MINUS, "-", null, 1),
-        @Literal(3)
+      Token(STAR, "*", null, 1),
+      Expr.Binary(
+        Expr.Literal(4),
+        Token(MINUS, "-", null, 1),
+        Expr.Literal(3)
       )
     );
     //println!(new ast_printer_rpn().print(expr));
@@ -39,8 +39,8 @@ class lox {
   }
 
   @io_throw @sv run_prompt() {
-    input := new InputStreamReader(System.in);
-    reader := new BufferedReader(input);
+    input := InputStreamReader(System.in);
+    reader := BufferedReader(input);
 
     for (;;) {
       print!("> ");
@@ -53,24 +53,24 @@ class lox {
   }
 
   @sv run(@str source) {
-    s := new scanner(source);
+    s := scanner(source);
     ts := s.scan_tokens();
     // for(var t:ts)
     //   println!(t);
-    p := new parser(ts);
+    p := parser(ts);
     if(has_err) return;
     stmts := p.parse();
     if(has_err) return;
-    print!(new ast_printer().print(stmts));
+    print!(ast_printer().print(stmts));
     I.interpret(stmts);
   }
-  static Interpreter I=new Interpreter();
+  static Interpreter I=Interpreter();
 
   @sv error(int line, @str message) {
     report(line, "", message);
   }
 
-  @sv error(token t, @str m){
+  @sv error(Token t, @str m){
     if(t.type is EOF) report(t.line, " at end", m);
     else report(t.line, " at '" + t.lexeme +"'" , m);
   }
@@ -100,8 +100,8 @@ class lox {
   IDENTIFIER, STRING, NUMBER, EOF
 }
 
-class token {
-  @gen_class_member(token,
+class Token {
+  @gen_class_member(Token,
   "token_type type, @str lexeme, Object literal, int line");
 
   public @str to@str() {
@@ -111,19 +111,19 @@ class token {
 
 class scanner {
   @str source;
-  List<token> tokens = new ArrayList<>();
+  List<Token> tokens = new ArrayList<>();
 
   scanner(@str source) {
     this.source = source;
   }
 
-  List<token> scan_tokens() {
+  List<Token> scan_tokens() {
     while (!is_end()) {
       start = current;
       scan_token();
     }
 
-    tokens.add(@T(EOF, "", null, line));
+    tokens.add(Token(EOF, "", null, line));
     return tokens;
   }
 
@@ -242,21 +242,22 @@ class scanner {
 
   void add_token(token_type type, Object literal) {
     text := source.substring(start, current);
-    tokens.add(@T(type, text, literal, line));
+    tokens.add(Token(type, text, literal, line));
   }
 }
 
 @gen_ast(Expr,
-"Binary : Expr left, token operator, Expr right",
+"Assign : Token name, Expr value",
+"Binary : Expr left, Token operator, Expr right",
 "Grouping : Expr expression",
 "Literal : Object value",
-"Unary : token operator, Expr right",
-"Variable : token name");
+"Unary : Token operator, Expr right",
+"Variable : Token name");
 
 @gen_ast(Stmt,
 "Expression : Expr expr",
 "Print : Expr expr",
-"Var : token name, Expr val");
+"Var : Token name, Expr val");
 
 class ast_printer implements Expr.Visitor<@str>, Stmt.Visitor<@str> {
   @str print(Expr expr){
@@ -264,7 +265,7 @@ class ast_printer implements Expr.Visitor<@str>, Stmt.Visitor<@str> {
   }
 
   @str print(List<Stmt> stmts){
-    sb:=new StringBuilder();
+    sb:=StringBuilder();
     for(var stmt:stmts){
       val := stmt.accept(this);
       if(val is null) continue;
@@ -310,7 +311,7 @@ class ast_printer implements Expr.Visitor<@str>, Stmt.Visitor<@str> {
   }
 
   @str parenthesize(@str name, Expr... exprs){
-    builder := new StringBuilder();
+    builder := StringBuilder();
     builder.append("(").append(name);
     for(var expr:exprs){
       builder.append(" ");
@@ -348,7 +349,7 @@ class ast_printer_rpn implements Expr.Visitor<@str> {
   }
 
   @str to_str(@str name, Expr... exprs){
-    builder := new StringBuilder();
+    builder := StringBuilder();
     for(var expr:exprs){
       builder.append(expr.accept(this));
       builder.append(" ");
@@ -359,15 +360,31 @@ class ast_printer_rpn implements Expr.Visitor<@str> {
 }
 
 class parser {
-  List<token> tokens;
+  List<Token> tokens;
   int current = 0;
 
-  parser(List<token> tokens){
+  parser(List<Token> tokens){
     this.tokens = tokens;
   }
 
   Expr expression() {
-    return equality();
+    return assignment();
+  }
+
+  Expr assignment() {
+    expr := equality();
+    if(match(EQUAL)){
+      equals := previous();
+      value := assignment();
+
+      if(expr is Expr.Variable){
+        name := ((Expr.Variable)expr).name;
+        return Expr.Assign(name, value);
+      }
+
+      error(equals, "Invalid assignment target.");
+    }
+    return expr;
   }
 
   Expr equality() {
@@ -375,7 +392,7 @@ class parser {
     while(match(BANG_EQUAL, EQUAL_EQUAL)){
       operator := previous();
       right := comparision();
-      expr = @Binary(expr, operator, right);
+      expr = Expr.Binary(expr, operator, right);
     }
     return expr;
   }
@@ -395,7 +412,7 @@ class parser {
     else return peek().type is t;
   }
 
-  token advance(){
+  Token advance(){
     if(!is_end()) current += 1;
     return previous();
   }
@@ -404,11 +421,11 @@ class parser {
     return peek().type is EOF;
   }
 
-  token peek(){
+  Token peek(){
     return tokens.get(current);
   }
 
-  token previous(){
+  Token previous(){
     return tokens.get(current-1);
   }
 
@@ -417,7 +434,7 @@ class parser {
     while(match(GREATER, GREATER_EQUAL, LESS, LESS_EQUAL)){
       op := previous();
       right := term();
-      expr = @Binary(expr, op, right);
+      expr = Expr.Binary(expr, op, right);
     }
     return expr;
   }
@@ -427,7 +444,7 @@ class parser {
     while(match(MINUS, PLUS)){
       op := previous();
       right := factor();
-      expr = @Binary(expr, op, right);
+      expr = Expr.Binary(expr, op, right);
     }
     return expr;
   }
@@ -437,7 +454,7 @@ class parser {
     while(match(SLASH, STAR)){
       op := previous();
       right := unary();
-      expr = @Binary(expr, op, right);
+      expr = Expr.Binary(expr, op, right);
     }
     return expr;
   }
@@ -446,38 +463,38 @@ class parser {
     if(match(BANG, BANG_EQUAL)){
       op := previous();
       right := unary();
-      return @Unary(op, right);
+      return Expr.Unary(op, right);
     }
     return primary();
   }
 
   Expr primary(){
-    if(match(FALSE)) return @Literal(false);
-    if(match(TRUE)) return @Literal(true);
-    if(match(NIL)) return @Literal(null);
+    if(match(FALSE)) return Expr.Literal(false);
+    if(match(TRUE)) return Expr.Literal(true);
+    if(match(NIL)) return Expr.Literal(null);
 
-    if(match(NUMBER, STRING)) return @Literal(previous().literal);
+    if(match(NUMBER, STRING)) return Expr.Literal(previous().literal);
 
-    if(match(IDENTIFIER)) return @Variable(previous());
+    if(match(IDENTIFIER)) return Expr.Variable(previous());
 
     if(match(LEFT_PAREN)){
       expr := expression();
       consume(RIGHT_PAREN,
           "Exprct ')' after expression.");
-      return @Grouping(expr);
+      return Expr.Grouping(expr);
     }
 
     throw error(peek(), "Expect expression.");
   }
 
-  token consume(token_type t, @str message){
+  Token consume(token_type t, @str message){
     if(check(t)) return advance();
     throw error(peek(), message);
   }
 
-  parse_error error(token tok, @str message){
+  parse_error error(Token tok, @str message){
     lox.error(tok, message);
-    return new parse_error();
+    return parse_error();
   }
   static class parse_error extends RuntimeException{}
 
@@ -523,7 +540,7 @@ class parser {
     Expr val = null;
     if(match(EQUAL)) val = expression();
     consume(SEMICOLON, "Expect ';' after variable declaration.");
-    return new Stmt.Var(name, val);
+    return Stmt.Var(name, val);
   }
 
   Stmt statement(){
@@ -534,18 +551,25 @@ class parser {
   Stmt print_stmt(){
     value := expression();
     consume(SEMICOLON, "Expect ';' after value.");
-    return new Stmt.Print(value);
+    return Stmt.Print(value);
   }
 
   Stmt expr_stmt(){
     expr := expression();
     consume(SEMICOLON, "Expect ';' after expression.");
-    return new Stmt.Expression(expr);
+    return Stmt.Expression(expr);
   }
 }
 
 class Interpreter implements
   Expr.Visitor<Object>, Stmt.Visitor<Void> {
+
+  @impl visitAssignExpr {
+    value := eval(expr.value);
+    env.assign(expr.name, value);
+    return value;
+  }
+
   @impl visitExpressionStmt {
     eval(stmt.expr);
   }
@@ -555,7 +579,7 @@ class Interpreter implements
     println!(to_str(value));
   }
 
-  Env env = new Env();
+  Env env = Env();
   @impl visitVarStmt {
     Object value=null;
     if(stmt.val!=null) value=eval(stmt.val);
@@ -596,19 +620,19 @@ class Interpreter implements
     return true;
   }
 
-  void check_num_oprand(token op, Object oprand){
+  void check_num_oprand(Token op, Object oprand){
     if(oprand is Double) return;
-    throw new runtime_err(op, "Oprand must be a number.");
+    throw runtime_err(op, "Oprand must be a number.");
   }
 
-  void check_num_oprands(token op, Object l, Object r){
+  void check_num_oprands(Token op, Object l, Object r){
     if(op.type is SLASH and 
     l is Double and 
     r is Double and 
     (double)r is 0) 
-    throw new runtime_err(op, "Right oprand must not be zero.");
+    throw runtime_err(op, "Right oprand must not be zero.");
     if(l is Double and r is Double) return;
-    throw new runtime_err(op, "Oprands must be numbers.");
+    throw runtime_err(op, "Oprands must be numbers.");
   }
 
   @impl visitBinaryExpr {
@@ -711,7 +735,7 @@ class Interpreter implements
 }
 
 class runtime_err extends RuntimeException{
-  @gen_class_member(runtime_err, "token t, @str message");
+  @gen_class_member(runtime_err, "Token t, @str message");
 }
 
 class Env{
@@ -721,11 +745,21 @@ class Env{
     values.put(name, value);
   }
 
-  Object get(token name){
+  void assign(Token name, Object value){
+    if(values.containsKey(name.lexeme)){
+      values.put(name.lexeme, value);
+      return;
+    }
+
+    throw runtime_err(name,
+      "Undefined variable '" + name.lexeme + "'.");
+  }
+
+  Object get(Token name){
     if(values.containsKey(name.lexeme)){
       return values.get(name.lexeme);
     }
-    throw new runtime_err(name,
+    throw runtime_err(name,
         "Undefined variable '"+name.lexeme+"'.");
   }
 }

@@ -1,6 +1,8 @@
-# pylint: disable=missing-module-docstring,missing-function-docstring,invalid-name,redefined-outer-name,missing-class-docstring,logging-fstring-interpolation
+"""generate full syntax from lox.java"""
 
 import logging
+import re
+from typing import Dict, Tuple
 
 logging.basicConfig(
     level=logging.INFO,
@@ -12,7 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 def normal_replace(line) -> str:
-    m = {
+    "replace common patterns."
+    pattern_map = {
         "@main": "public static void main",
         "@sv": "static void",
         "is Double": "instanceof Double",
@@ -28,78 +31,79 @@ def normal_replace(line) -> str:
         " and ": " && ",
         " or ": " || ",
         " is ": " == ",
-        "@Literal": "new Expr.Literal",
-        "@Unary": "new Expr.Unary",
-        "@Binary": "new Expr.Binary",
-        "@Grouping": "new Expr.Grouping",
-        "@Variable": "new Expr.Variable",
-        "@T": "new token",
         "to_double": "Double.parseDouble",
     }
-    for k, v in m.items():
-        line = line.replace(k, v)
+    for key, val in pattern_map.items():
+        line = line.replace(key, val)
     return line
 
 
 class Reader:
+    "per-line reader"
+
     def __init__(self, lines):
         self.lines = lines
         self.index = 0
 
     def current(self) -> str:
+        "current line"
         return normal_replace(self.lines[self.index])
 
     def advance(self) -> None:
+        "to next"
         self.index += 1
 
     def is_end(self) -> bool:
+        "running out lines"
         return self.index == len(self.lines)
 
     def get_params(self):
+        "get full statement in following lines"
         line = self.current()
-        s1 = ""
+        statement = ""
         while ");" not in line and not self.is_end():
-            s1 += line
+            statement += line
             self.advance()
             line = self.current()
-        s1 += line
-        s1 = s1[s1.find("(") + 1 : s1.find(");")]
-        arr = get_tokens(s1)
+        statement += line
+        statement = statement[statement.find("(") + 1 : statement.find(");")]
+        arr = get_tokens(statement)
         return arr[0], arr[1:]
 
 
-def get_tokens(s: str) -> list[str]:
+def get_tokens(statement: str) -> list[str]:
+    "split elements in statement"
     arr: list[str] = []
     index = 0
 
     def read_word() -> str:
-        nonlocal s, index
+        nonlocal statement, index
         tmp = ""
-        while index < len(s) and s[index] != ",":
-            tmp += s[index]
+        while index < len(statement) and statement[index] != ",":
+            tmp += statement[index]
             index += 1
         index += 1
         return tmp.strip()
 
     def read_str() -> str:
-        nonlocal s, index
-        tmp = s[index]
+        nonlocal statement, index
+        tmp = statement[index]
         index += 1
-        while index < len(s) and s[index] != '"':
-            tmp += s[index]
+        while index < len(statement) and statement[index] != '"':
+            tmp += statement[index]
             index += 1
-        tmp += s[index]
+        tmp += statement[index]
         index += 1
 
         index += 1
         return tmp.strip()[1:-1]
 
-    while index < len(s):
-        c = s[index]
-        if c in " \n":
+    while index < len(statement):
+        char = statement[index]
+        if char in " \n":
             index += 1
             continue
-        if c == '"':
+        if char == '"':
             arr.append(read_str())
         else:
             arr.append(read_word())
@@ -107,7 +111,8 @@ def get_tokens(s: str) -> list[str]:
 
 
 def trans(key: str) -> str | None:
-    m = {
+    "translate symbols"
+    translation = {
         "(": "LEFT_PAREN",
         ")": "RIGHT_PAREN",
         "{": "LEFT_BRACE",
@@ -128,64 +133,78 @@ def trans(key: str) -> str | None:
         "<": "LESS",
         "<=": "LESS_EQUAL",
     }
-    if key in m:
-        return m[key]
+    if key in translation:
+        return translation[key]
     return None
 
 
-def insert_tr(p1: str, params: list[str]) -> str:
-    params.insert(0, p1)
+def insert_tr(param_1: str, params: list[str]) -> str:
+    "generate translation"
+    params.insert(0, param_1)
 
     ret = ""
-    for p in params:
-        translated = trans(p)
+    for param in params:
+        translated = trans(param)
         if translated is not None:
             ret += translated + ", "
         else:
-            ret += p.upper() + ", "
+            ret += param.upper() + ", "
     return ret + "\n"
 
 
-def insert_tr_1(p1, params) -> str:
-    p1 = list(p1)
-    p1, params = p1[0], p1[1:]
-    r = insert_tr(p1, params)
-    return r
+def insert_tr_1(param_1, params) -> str:
+    "generate tranlation, one parameter"
+    param_1 = list(param_1)
+    param_1, params = param_1[0], param_1[1:]
+    result = insert_tr(param_1, params)
+    return result
 
 
-def case(p1, params) -> str:
+def case(param_1, params) -> str:
+    "generate case statement"
     ret = ""
     for i in list(params[0]):
-        ret += f"      case '{i}': {p1}({trans(i)}); break;" + "\n"
+        ret += f"      case '{i}': {param_1}({trans(i)}); break;" + "\n"
     return ret
 
 
-def gen_insert_cap(p1, params) -> str:
+def gen_insert_cap(param_1, params) -> str:
+    "generate map insert statements"
     ret = []
     for i in params:
-        ret.append(f'    {p1}.put("{i}", {i.upper()});')
-    r = "\n".join(ret) + "\n"
-    return r
+        ret.append(f'    {param_1}.put("{i}", {i.upper()});')
+    result = "\n".join(ret) + "\n"
+    return result
 
 
 def define_visitor(base_name: str, types: list[str]) -> str:
-    r = "  interface Visitor<R> {\n"
+    "defining visitor"
+    result = "  interface Visitor<R> {\n"
 
-    for t in types:
-        type_name = t.split(":")[0].strip()
-        r += f"    R visit{type_name}{base_name}({type_name} {base_name.lower()});\n"
-    r += "  }\n"
-    r += "\n"
-    return r
+    for type_ in types:
+        type_name = type_.split(":")[0].strip()
+        result += (
+            f"    R visit{type_name}{base_name}({type_name} {base_name.lower()});\n"
+        )
+    result += "  }\n"
+    result += "\n"
+    return result
 
 
-def gen_ast(p1, params):
-    ret = f"abstract class {p1} {{\n"
-    ret += define_visitor(p1, params)
-    for t in params:
-        class_name = t.split(":")[0].strip()
-        fields = t.split(":")[1].strip()
-        ret += define_type(p1, class_name, fields)
+g_classes = set()
+
+
+def gen_ast(class_name: str, subclass_and_fields_list: list[str]):
+    "generate class definations with visitor pattern"
+    ret = f"abstract class {class_name} {{\n"
+    ret += define_visitor(class_name, subclass_and_fields_list)
+
+    for subclass_and_fields in subclass_and_fields_list:
+        subclass_name = subclass_and_fields.split(":")[0].strip()
+        fields = subclass_and_fields.split(":")[1].strip()
+        ret += define_type(class_name, subclass_name, fields)
+        g_classes.add(f"{class_name}.{subclass_name}")
+
     ret += "\n"
     ret += "  abstract <R> R accept(Visitor<R> visitor);\n"
     ret += "}\n"
@@ -193,64 +212,72 @@ def gen_ast(p1, params):
 
 
 def gen_class_member(class_name: str, fields: list[str]) -> str:
-    r = ""
+    "generate class member and constructor"
+    result = ""
     fields = fields[0].split(", ")
     map_ = {}
-    for f in fields:
-        type_, name = f.split()
+    for field in fields:
+        type_, name = field.split()
         map_[type_] = name
-        r += f"  {type_} {name};" + "\n"
-    r += f"  {class_name}({', '.join(fields)}) {{" + "\n"
-    for _, v in map_.items():
-        r += f"    this.{v} = {v};" + "\n"
-    r += "  }\n"
-    return r
+        result += f"  {type_} {name};" + "\n"
+    result += f"  {class_name}({', '.join(fields)}) {{" + "\n"
+    for _, val in map_.items():
+        result += f"    this.{val} = {val};" + "\n"
+    result += "  }\n"
+    return result
 
 
-def define_type(p1, class_name, fields):
+def define_type(parent_class, sub_class, fields):
+    "defining sub class"
     # logger.info(f"input: {p1=} {class_name=} {fields=}")
-    r = f"  static class {class_name} extends {p1} {{" + "\n"
+    result = f"  static class {sub_class} extends {parent_class} {{" + "\n"
     fields = fields.split(", ")
-    for f in fields:
-        type_, name = f.split()
-        r += f"    {type_} {name};" + "\n"
-    r += f"    {class_name}({', '.join(fields)}) {{" + "\n"
-    for f in fields:
-        _, name = f.split()
-        r += f"      this.{name} = {name};" + "\n"
-    r += "    }\n"
+    for field in fields:
+        type_, name = field.split()
+        result += f"    {type_} {name};" + "\n"
+    result += f"    {sub_class}({', '.join(fields)}) {{" + "\n"
+    for field in fields:
+        _, name = field.split()
+        result += f"      this.{name} = {name};" + "\n"
+    result += "    }\n"
 
-    r += "\n"
-    r += "    @Override\n"
-    r += "    <R> R accept(Visitor<R> visitor) {\n"
-    r += f"      return visitor.visit{class_name}{p1}(this);\n"
-    r += "    }\n"
+    result += "\n"
+    result += "    @Override\n"
+    result += "    <R> R accept(Visitor<R> visitor) {\n"
+    result += f"      return visitor.visit{sub_class}{parent_class}(this);\n"
+    result += "    }\n"
 
-    r += "  }\n"
+    result += "  }\n"
     # logger.info(f"generated: {r}")
-    return r
+    return result
 
 
-def gen_namespace(s: str) -> str:
-    ns_name = s.strip().split()[1]
+def gen_namespace(line: str) -> str:
+    "generate package statement"
+    ns_name = line.strip().split()[1]
     return f"package {ns_name};\n"
 
 
-def gen_import(s: str) -> str:
-    pkgs = s.strip().split()[1].split(",")
+def gen_import(line: str) -> str:
+    "generate import statements"
+    pkgs = line.strip().split()[1].split(",")
     ret = ""
     for i in pkgs:
         ret += f"import java.{i}.*;\n"
     return ret
 
 
-def transform(r: Reader, state: list[str]) -> None:
-    def match(x: str) -> bool:
-        return r.current().strip().startswith(x)
+def transform(
+    reader: Reader, state: list[str], pending_null: bool, brace_stack: str
+) -> Tuple[bool, str]:
+    "block transform"
+
+    def match(line: str) -> bool:
+        return reader.current().strip().startswith(line)
 
     if match("//"):
-        state.append(r.current())
-        r.advance()
+        state.append(reader.current())
+        reader.advance()
         return
 
     header_map = {
@@ -258,100 +285,98 @@ def transform(r: Reader, state: list[str]) -> None:
         "@import": gen_import,
     }
 
-    for k, v in header_map.items():
+    for k, val in header_map.items():
         if match(k):
-            state.append(v(r.current()))
-            r.advance()
+            state.append(val(reader.current()))
+            reader.advance()
             return
 
-    l = r.current()
+    line = reader.current()
 
-    if ":=" in l:
-        arr = l.split(":=")
+    if match("class"):
+        g_classes.add(line.strip().split()[1].strip().replace("{", ""))
+
+    if ":=" in line:
+        arr = line.split(":=")
         assert len(arr) == 2
         var_name, rest = arr[0].strip(), arr[1].strip()
-        l = transfer_head_space(arr[0], f"var {var_name} = {rest}\n")
+        line = transfer_head_space(arr[0], f"var {var_name} = {rest}\n")
 
     if match("@static"):
-        line = r.current()
+        line = reader.current()
         name = line.split()[-2]
-        ns = state[0].split()[-1][:-1]
-        state.insert(2, f"import static {ns}.{name}.*;\n")
+        namespace = state[0].split()[-1][:-1]
+        state.insert(2, f"import static {namespace}.{name}.*;\n")
         line = line.replace("@static ", "")
         state.append(line)
-        r.advance()
+        reader.advance()
         return
 
     if match("@io_throw"):
-        arr = l.rsplit("{")
+        arr = line.rsplit("{")
         assert len(arr) == 2
         func_decl = arr[0].replace("@io_throw", "").strip()
-        l = f"{func_decl} throws IOException {{\n"
+        line = f"{func_decl} throws IOException {{\n"
 
-    l = pipe_func(l)
+    line = pipe_func(line, reader=reader)
 
-    global visitor_class_type_map
-    if "implements" in l:
-        while "{" not in l:
-            r.advance()
-            l += r.current()
-        parent_classes = l.split("implements")[1].replace("{", "").split(",")
+    if "implements" in line:
+        while "{" not in line:
+            reader.advance()
+            line += reader.current()
+        parent_classes = line.split("implements")[1].replace("{", "").split(",")
         for i in parent_classes:
             arr = i.strip().split(".Visitor<")
             v_class = arr[0]
             v_type = arr[1][:-1]
             visitor_class_type_map[v_class] = v_type
 
-    global pending_null, brace_stack
-    import re
-
     if match("@impl"):
-        method_name = l.replace("@impl", "").replace("{", "").strip()
-        ret = re.findall(r"[A-Z][a-z]+", method_name)
-        # logger.info(f"{ret=}")
-        sub_class_name, parent_class_name = ret
-        return_type = visitor_class_type_map[parent_class_name]
-        l = transfer_head_space(
-            l,
-            f"@Override public {return_type} {method_name}"
-            + f"({parent_class_name}.{sub_class_name} {parent_class_name.lower()}) {{\n",
-        )
-        if return_type == "Void":
-            pending_null = True
+        method_name = line.replace("@impl", "").replace("{", "").strip()
+        if method_name.startswith("visit"):
+            ret = re.findall(r"[A-Z][a-z]+", method_name)
+            # logger.info(f"{ret=}")
+            sub_class_name, parent_class_name = ret
+            return_type = visitor_class_type_map[parent_class_name]
+            line = transfer_head_space(
+                line,
+                f"@Override public {return_type} {method_name}"
+                + f"({parent_class_name}.{sub_class_name} {parent_class_name.lower()}) {{\n",
+            )
+            if return_type == "Void":
+                pending_null = True
     if pending_null:
-        for c in l:
-            if c == "{":
-                brace_stack += c
-            if c == "}":
+        for char in line:
+            if char == "{":
+                brace_stack += char
+            if char == "}":
                 # breakpoint()
                 brace_stack = brace_stack[:-1]
                 if len(brace_stack) == 0:
                     pending_null = False
-                    state.append("  " + transfer_head_space(l, "return null;\n"))
+                    state.append("  " + transfer_head_space(line, "return null;\n"))
 
-    state.append(l)
-    r.advance()
+    state.append(line)
+    reader.advance()
+    return pending_null, brace_stack
 
 
-def transfer_head_space(origin: str, to: str) -> str:
+def transfer_head_space(origin: str, output: str) -> str:
+    "add origin's leading space to output"
     head_spaces = 0
-    for i in range(len(origin)):
-        if origin[i] == " ":
+    for _, val in enumerate(origin):
+        if val == " ":
             head_spaces += 1
         else:
             break
-    return " " * head_spaces + to
+    return " " * head_spaces + output
 
-
-pending_null = False
-brace_stack = ""
-
-from typing import Dict
 
 visitor_class_type_map: Dict[str, str] = {}
 
 
-def pipe_func(l: str) -> str:
+def pipe_func(line: str, reader: Reader) -> str:
+    "apply macros"
     func_map = {
         "@insert_capval": gen_insert_cap,
         "@gen_ast": gen_ast,
@@ -361,28 +386,67 @@ def pipe_func(l: str) -> str:
         "@case": case,
     }
 
-    def verify_cond(l):
-        for k, v in func_map.items():
-            if l.strip().startswith(k):
-                return v
+    def verify_cond(line):
+        for macro, func in func_map.items():
+            if line.strip().startswith(macro):
+                return func
         return None
 
-    func = verify_cond(l)
+    func = verify_cond(line)
     if func is not None:
-        p1, params = r.get_params()
-        return func(p1, params)
+        param_1, params = reader.get_params()
+        return func(param_1, params)
 
-    return l
+    return line
+
+
+def get_lines(file_name: str) -> list[str]:
+    "get lines from file"
+    lines = []
+    with open(file_name, encoding="utf-8", mode="r") as file:
+        lines = file.readlines()
+    return lines
+
+
+def filter_line(line: str) -> str:
+    "do last refinement"
+    for i in g_classes:
+        if f"{i}(" in line and "new" not in line and "{" not in line:
+            line = line.replace(i, f"new {i}")
+            if "=" in line and line.replace("static", "").strip().startswith("new"):
+                line = line.replace("new ", "", 1)
+            if ".new" in line:
+                line = line.replace("new ", "", 1)
+    if "return parse_error" in line:
+        line = line.replace("return", "return new")
+    if "== Expr." in line:
+        line = line.replace("==", "instanceof")
+    return line
+
+
+def transform_all(in_file_name: str) -> list[str]:
+    "read file and transform into lines"
+    reader = Reader(get_lines(in_file_name))
+    state: list[str] = []
+
+    pending_null: bool = False
+    brace_stack: str = ""
+    while not reader.is_end():
+        pending_null, brace_stack = transform(reader, state, pending_null, brace_stack)
+    return state
+
+
+def write_state(state: list[str], out_file_name: str) -> None:
+    "do final replace and write"
+    with open(out_file_name, mode="w", encoding="utf-8") as file:
+        state = "\r\n".join(state).split("\r\n")
+        for line in state:
+            line = filter_line(line)
+            file.write(line)
 
 
 if __name__ == "__main__":
-    lines = []
-    with open("lox.java", encoding="utf-8", mode="r") as f:
-        lines = f.readlines()
-    r = Reader(lines)
-    state: list[str] = []
-    while not r.is_end():
-        transform(r, state)
-    with open("out.java", mode="w", encoding="utf-8") as f:
-        for t in state:
-            f.write(t)
+    g_classes.add("InputStreamReader")
+    g_classes.add("BufferedReader")
+    g_classes.add("StringBuilder")
+    write_state(transform_all("lox.java"), "out.java")

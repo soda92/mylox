@@ -3,7 +3,7 @@
     "editor.occurrencesHighlight": false,
     "workbench.statusBar.visible": false,
     "zenMode.hideActivityBar": true,
-    "workbench.activityBar.visible": false,
+    "workbench.activityBar.visible": true,
     "workbench.editor.titleScrollbarSizing": "default",
     "zenMode.hideStatusBar": true,
     "zenMode.fullScreen": false,
@@ -11,5 +11,9 @@
     "workbench.editor.decorations.badges": true,
     "editor.fontFamily": "'Fira Code', 'Rec Mono SemiCasual',  'Noto Sans Mono CJK SC', Consolas, 'Courier New', monospace",
     "editor.renderWhitespace": "trailing",
-    "zenMode.hideLineNumbers": true
+    "zenMode.hideLineNumbers": true,
+    "editor.scrollbar.vertical": "auto",
+    "powershell.sideBar.CommandExplorerVisibility": true,
+    "editor.lineNumbers": "relative",
+    "editor.fontSize": 14
 }
