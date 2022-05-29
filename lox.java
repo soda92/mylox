@@ -3,20 +3,6 @@
 
 class lox {
   @io_throw @main(@str[] args) {
-    expr := Expr.Binary(
-      Expr.Binary(
-        Expr.Literal(1),
-        Token(PLUS, "+", null, 1),
-        Expr.Literal(2)
-      ),
-      Token(STAR, "*", null, 1),
-      Expr.Binary(
-        Expr.Literal(4),
-        Token(MINUS, "-", null, 1),
-        Expr.Literal(3)
-      )
-    );
-    //println!(new ast_printer_rpn().print(expr));
     if (args.length > 1) {
       println!("Usage: jlox [script]");
       System.exit(64);
@@ -55,13 +41,10 @@ class lox {
   @sv run(@str source) {
     s := scanner(source);
     ts := s.scan_tokens();
-    // for(var t:ts)
-    //   println!(t);
     p := parser(ts);
     if(has_err) return;
     stmts := p.parse();
     if(has_err) return;
-    print!(ast_printer().print(stmts));
     I.interpret(stmts);
   }
   static Interpreter I=Interpreter();
@@ -247,117 +230,18 @@ class scanner {
 }
 
 @gen_ast(Expr,
-"Assign : Token name, Expr value",
-"Binary : Expr left, Token operator, Expr right",
-"Grouping : Expr expression",
-"Literal : Object value",
-"Unary : Token operator, Expr right",
-"Variable : Token name");
+"Assign: Token name, Expr value",
+"Binary: Expr left, Token operator, Expr right",
+"Grouping: Expr expression",
+"Literal: Object value",
+"Unary: Token operator, Expr right",
+"Variable: Token name");
 
 @gen_ast(Stmt,
-"Expression : Expr expr",
-"Print : Expr expr",
-"Var : Token name, Expr val");
-
-class ast_printer implements Expr.Visitor<@str>, Stmt.Visitor<@str> {
-  @str print(Expr expr){
-    return expr.accept(this);
-  }
-
-  @str print(List<Stmt> stmts){
-    sb:=StringBuilder();
-    for(var stmt:stmts){
-      val := stmt.accept(this);
-      if(val is null) continue;
-      sb.append(val);
-      sb.append('\n');
-    }
-    return sb.to@str();
-  }
-
-  @impl visitExpressionStmt {
-    return null;
-  }
-
-  @impl visitPrintStmt {
-    return stmt.expr.accept(this);
-  }
-
-  @impl visitVarStmt {
-    return "(define "+ stmt.name.lexeme + " " + stmt.val.accept(this) + ")";
-  }
-
-  @impl visitVariableExpr {
-    return expr.name.lexeme;
-  }
-
-  @impl visitBinaryExpr {
-    return parenthesize(expr.operator.lexeme, expr.left, expr.right);
-  }
-
-  @impl visitGroupingExpr {
-    return expr.expression.accept(this);
-  }
-
-  @impl visitLiteralExpr {
-    if (expr.value is null) return "nil";
-    r := expr.value.to@str();
-    r=tool.trim(r);
-    return r;
-  }
-
-  @impl visitUnaryExpr {
-    return parenthesize(expr.operator.lexeme, expr.right);
-  }
-
-  @str parenthesize(@str name, Expr... exprs){
-    builder := StringBuilder();
-    builder.append("(").append(name);
-    for(var expr:exprs){
-      builder.append(" ");
-      builder.append(expr.accept(this));
-    }
-    builder.append(")");
-    return builder.to@str();
-  }
-}
-
-class ast_printer_rpn implements Expr.Visitor<@str> {
-  @str print(Expr expr){
-    return expr.accept(this);
-  }
-
-  @impl visitBinaryExpr {
-    return to_str(expr.operator.lexeme, expr.left, expr.right);
-  }
-
-  @impl visitGroupingExpr {
-    return to_str("", expr.expression);
-  }
-
-  @impl visitLiteralExpr {
-    if (expr.value is null) return "nil";
-    return expr.value.to@str();
-  }
-
-  @impl visitUnaryExpr {
-    return to_str(expr.operator.lexeme, expr.right);
-  }
-
-  @impl visitVariableExpr {
-    return null;
-  }
-
-  @str to_str(@str name, Expr... exprs){
-    builder := StringBuilder();
-    for(var expr:exprs){
-      builder.append(expr.accept(this));
-      builder.append(" ");
-    }
-    builder.append(name);
-    return builder.to@str();
-  }
-}
+"Block: List<Stmt> statements",
+"Expression: Expr expr",
+"Print: Expr expr",
+"Var: Token name, Expr val");
 
 class parser {
   List<Token> tokens;
@@ -545,7 +429,19 @@ class parser {
 
   Stmt statement(){
     if(match(PRINT)) return print_stmt();
+    if(match(LEFT_BRACE)) return Stmt.Block(block());
     return expr_stmt();
+  }
+
+  List<Stmt> block(){
+    List<Stmt> statements = new ArrayList<>();
+
+    while(!check(RIGHT_BRACE) and !is_end()){
+      statements.add(declaration());
+    }
+
+    consume(RIGHT_BRACE, "Expect '}' after block.");
+    return statements;
   }
 
   Stmt print_stmt(){
@@ -584,6 +480,23 @@ class Interpreter implements
     Object value=null;
     if(stmt.val!=null) value=eval(stmt.val);
     env.define(stmt.name.lexeme, value);
+  }
+
+  @impl visitBlockStmt {
+    exec_block(stmt.statements, Env(env));
+  }
+
+  void exec_block(List<Stmt> statements, Env environment){
+    Env previous = this.env;
+    try{
+      this.env = environment;
+
+      for(var stmt: statements)
+        exec(stmt);
+    }
+    finally{
+      this.env = previous;
+    }
   }
 
   @impl visitVariableExpr {
@@ -739,6 +652,16 @@ class runtime_err extends RuntimeException{
 }
 
 class Env{
+  Env enclosing;
+
+  Env(){
+    enclosing = null;
+  }
+
+  Env(Env enclosing){
+    this.enclosing = enclosing;
+  }
+
   Map<@str, Object> values = new HashMap<>();
 
   void define(@str name, Object value){
@@ -751,14 +674,22 @@ class Env{
       return;
     }
 
+    if(enclosing != null){
+      enclosing.assign(name, value);
+      return;
+    }
+
     throw runtime_err(name,
       "Undefined variable '" + name.lexeme + "'.");
   }
 
   Object get(Token name){
-    if(values.containsKey(name.lexeme)){
+    if(values.containsKey(name.lexeme))
       return values.get(name.lexeme);
-    }
+
+    if (enclosing != null)
+      return enclosing.get(name);
+
     throw runtime_err(name,
         "Undefined variable '"+name.lexeme+"'.");
   }
