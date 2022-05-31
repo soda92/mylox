@@ -2,6 +2,27 @@
     "configurations": [
         {
             "type": "java",
+            "name": "Launch Test",
+            "request": "launch",
+            "mainClass": "Test",
+            "projectName": "mylox_48f55fe5"
+        },
+        {
+            "type": "java",
+            "name": "Launch Lox",
+            "request": "launch",
+            "mainClass": "com.craftinginterpreters.lox.Lox",
+            "projectName": "mylox_48f55fe5"
+        },
+        {
+            "type": "java",
+            "name": "Launch Main",
+            "request": "launch",
+            "mainClass": "Main",
+            "projectName": "mylox_48f55fe5"
+        },
+        {
+            "type": "java",
             "name": "java launch",
             "request": "attach",
             "projectName": "proj",

@@ -228,8 +228,8 @@ def gen_class_member(class_name: str, fields: list[str]) -> str:
 
 
 def define_type(parent_class, sub_class, fields):
-    "defining sub class"
-    # logger.info(f"input: {p1=} {class_name=} {fields=}")
+    "defining subclass"
+    # logger.info(f"input: {parent_class=} {sub_class=} {fields=}")
     result = f"  static class {sub_class} extends {parent_class} {{" + "\n"
     fields = fields.split(", ")
     for field in fields:
@@ -248,7 +248,7 @@ def define_type(parent_class, sub_class, fields):
     result += "    }\n"
 
     result += "  }\n"
-    # logger.info(f"generated: {r}")
+    # logger.info(f"generated: {result}")
     return result
 
 
@@ -311,7 +311,6 @@ def transform(
         state.append(line)
         reader.advance()
         return pending_null, brace_stack
-
 
     if match("@io_throw"):
         arr = line.rsplit("{")
@@ -444,6 +443,84 @@ def write_state(state: list[str], out_file_name: str) -> None:
         for line in state:
             line = filter_line(line)
             file.write(line)
+
+
+BNF = """
+FILE -> NAMESPACE_DECL IMPORT_DECL CLASS_DECL+;
+CLASS_DECL -> "class" $class_name "{"
+    (GLOBAL_VAR|FUNC_DECL)+ "}";
+GLOBAL_VAR -> ACCESS_MODIFIDER VAR_TYPE VAR_DECL;
+VAR_TYPE -> $class_names | INTERAL_TYPE;
+INTERAL_TYPE -> "String" | "Double" | COLLECTION_TYPE;
+COLLECTION_TYPE -> ("List"|"ArrayList|"Map"|"HashMap") "<" VAR_TYPE ">";
+ACCESS_MODIFIER -> VISIBILITY IS_STATIC;
+VISIBILITY -> "public" | "private" | "protected" | "";
+IS_STATIC -> "static" | "";
+VAR_DECL -> VAR_NAME | (VAR_NAME '=' EXPR);
+EXPR -> VALUE | UNARY | BINARY |GROUPING | "";
+VALUE -> STRING| FUNC_CALL | NUMBER | "true" | "false"| "null";
+UNARY -> ("-" | "!" ) EXPR;
+BINARY ->EXPR OPERATOR EXPR:
+GROUPING -> "(" EXPR ")";
+OPERATOR -> "==" | "!=" | "<" | "<=" | ">" | ">=" | "+" | "-" | "*" | "/" ;
+
+FUNC_CALL -> Object ("." FUNC_NAME)* "("
+ ""| EXPR | EXPR ("," EXPR)*
+ ")";
+Object -> "new class_name" | VAR_NAME;
+FUNC_DECL -> ACCESS_MODIFIDER TYPE FUNC_NAME "(" (VAR_TYPE VAR_NAME)* ")" THROW_STATEMENT "{" EXPRESSION* "}"
+
+THROW_STATEMENT -> ""
+        | "throws" EXCEPTION_TYPE ("," EZXCEPTION_TYPE)*;
+EXCEPTION_TYPE -> class_name;
+EXPRESSION -> IF_EXPR | FOR_EXPR |WHILE_EXPR | EXPR| RETURN;
+RETURN -> "return" EXPR;
+IF_EXPR -> "if" "(" EXPR ")" BLOCK
+            ("else if" BLOCK)*
+            ("else" BLOCK)*;
+BLOCK -> EXPR | "{" EXPR+ "}";
+FOR_EXPR -> "for" "(" EXPR; EXPR; EXPR ")" BLOCK_WITH_BREAK;
+WHILE_EXPR -> "while" "(" EXPR ")" BLOCK_WITH_BREAK;
+BLOCK_WITH_BREAK -> EXPR | "{" (EXPR| "break" )+ "}";
+
+"""
+
+
+class Expression:
+    pass
+
+
+class VarDecl:
+    pass
+
+
+class IfStmt:
+    pass
+
+
+class ForStmt:
+    pass
+
+
+class FuncDecl:
+    pass
+
+
+class ConstructorDecl:
+    pass
+
+
+class ClassDecl:
+    def __init__(self, functions: list[FuncDecl],
+    global_variables: list[VarDecl]) -> None:
+        pass
+
+
+class Tokenizer:
+    "get tokens"
+
+    def __init__(self, source) -> None:
+        self.source = source
 
 
 if __name__ == "__main__":

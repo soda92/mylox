@@ -28,3 +28,4 @@ out.java
 *.stats
 *#
 /lox
+/target
