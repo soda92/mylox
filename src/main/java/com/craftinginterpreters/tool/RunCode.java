@@ -3,20 +3,10 @@ package com.craftinginterpreters.tool;
 import java.io.*;
 import java.lang.reflect.*;
 import java.nio.file.*;
+import java.util.stream.Collectors;
 
 public class RunCode {
-    public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException, InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException {
-        String code = """
-                public class Code{
-                    public void foo(){
-                        System.out.println(1+1);
-                        System.out.println("hello world");
-                    }
-                }""";
-        Path currentRelativePath = Paths.get("");
-        String directory = currentRelativePath.toAbsolutePath().toString();
-//        System.out.println(directory);
-        directory += "\\target\\tmp";
+    private static void clean(String directory) {
         File file = new File(directory);
         // file Extension
         String extension = ".class";
@@ -28,52 +18,61 @@ public class RunCode {
         for (File f : fileList) {
 //            System.out.println(f.getAbsolutePath());
             if (!f.delete())
-                throw new IOException("Not able to delete file: " + f.getAbsolutePath());
+                try {
+                    throw new IOException("Not able to delete file: " + f.getAbsolutePath());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
         }
-        Path path = Paths.get(directory);
-        Files.createDirectories(path);
-        FileWriter myWriter = new FileWriter(directory + "\\" + "Code.java");
-        myWriter.write(code);
-        myWriter.close();
-        ProcessBuilder builder = new ProcessBuilder("javac.exe", "Code.java");
-        builder.directory(new File(directory));
-        Process process = builder.start();
-        int exitCode = process.waitFor();
-        assert exitCode == 0;
-        Class<?> codeClass = new CustomClassLoader().findClass(directory + "\\" + "Code.class");
-        codeClass.getMethod("foo").invoke(codeClass.getDeclaredConstructor().newInstance());
     }
-}
 
-class CustomClassLoader extends ClassLoader {
-
-    @Override
-    public Class<?> findClass(String name) {
-        byte[] b;
+    private static void write(String code, String directory, String fileName) {
+        Path path = Paths.get(directory);
         try {
-            b = loadClassFromFile(name);
+            Files.createDirectories(path);
+            FileWriter myWriter = new FileWriter(directory + "\\" + fileName);
+            myWriter.write(code);
+            myWriter.close();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        return defineClass("Code", b, 0, b.length);
+
     }
 
-    private byte[] loadClassFromFile(String filePath) throws IOException {
-        FileInputStream inputStream = new FileInputStream(filePath);
-        byte[] buffer;
-        ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
-        int nextValue;
+    private static boolean compile(String directory, String fileName) throws IOException, InterruptedException {
+        ProcessBuilder builder = new ProcessBuilder("javac.exe", fileName);
+        builder.directory(new File(directory));
+        builder.redirectErrorStream(true);
+        Process process = builder.start();
+        int exitCode = process.waitFor();
+        System.out.println(new BufferedReader(new InputStreamReader(process.getInputStream(), "GBK")).lines().collect(Collectors.joining(System.lineSeparator())));
+        return exitCode == 0;
+    }
+
+    public static Object run(String className, String methodName, String directory) throws IOException, InterruptedException, ClassNotFoundException, InstantiationException, IllegalAccessException, NoSuchMethodException, InvocationTargetException {
+        CustomClassLoader loader = new CustomClassLoader();
+        loader.setPath(directory);
+        Class<?> codeClass = loader.findClass(className);
+        return codeClass.getMethod(methodName).invoke(codeClass.getDeclaredConstructor().newInstance());
+    }
+
+    public static void main(String[] args) {
+        Path currentRelativePath = Paths.get("");
+        String directory = currentRelativePath.toAbsolutePath().toString();
+        directory += "\\target\\tmp";
+        String className = "Code";
+        Object value = null;
+
         try {
-            while ((nextValue = inputStream.read()) != -1) {
-                byteStream.write(nextValue);
+            clean(directory);
+            boolean isSuccess = compile(directory, className + ".java");
+            if (isSuccess) {
+                value = run(className, "foo", directory);
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (IOException | InstantiationException | ClassNotFoundException | InterruptedException |
+                 IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+            throw new RuntimeException(e);
         }
-        buffer = byteStream.toByteArray();
-        inputStream.close();
-        return buffer;
+        System.out.println((String) value);
     }
 }
-
-

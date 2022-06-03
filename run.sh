@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
-python gen.py
-if [ ! $? -eq 0 ]; then exit $? ; fi
-javac out.java
-if [ ! $? -eq 0 ]; then exit $? ; fi
+
+if ! python gen.py;
+then exit $?
+fi
+
+if ! javac out.java;
+then exit $?
+fi
+
 [ ! -d "lox" ] && mkdir lox
+
 mv *.class lox
 mv out.java lox
-jar cfm lox.jar entry lox/*.class
-if [ ! $? -eq 0 ]; then exit $? ; fi
-java -jar lox.jar $@
+
+if ! jar cfm lox.jar entry lox/*.class;
+then exit $?
+fi
+
+java -jar lox.jar "$@"
