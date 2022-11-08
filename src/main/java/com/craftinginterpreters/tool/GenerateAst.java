@@ -8,7 +8,7 @@ import java.util.*;
 public class GenerateAst {
     public static void main(String[] args) throws IOException {
         if (args.length != 1) {
-//            System.err.println("Usage: generate_ast <output directory");
+//            System.err.println("Usage: generate_ast <output directory>");
             Path currentRelativePath = Paths.get("");
             String s = currentRelativePath.toAbsolutePath().toString();
             System.err.println("Current absolute path is: " + s);
@@ -16,10 +16,18 @@ public class GenerateAst {
         }
         String outputDir = "src/main/java/com/craftinginterpreters/lox";
         defineAst(outputDir, "Expr", Arrays.asList(
-                "Binary: Expr left, Token operator, Expr right",
+                "Assign:   Token name, Expr value",
+                "Binary:   Expr left, Token operator, Expr right",
                 "Grouping: Expr expression",
-                "Literal: Object value",
-                "Unary: Token operator, Expr right"
+                "Literal:  Object value",
+                "Unary:    Token operator, Expr right",
+                "Variable: Token name"
+        ));
+
+        defineAst(outputDir, "Stmt", Arrays.asList(
+                "Expression : Expr expression",
+                "Print      : Expr expression",
+                "Var        : Token name, Expr initializer"
         ));
     }
 
