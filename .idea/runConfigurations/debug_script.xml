@@ -1,6 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="debug script" type="PowerShellRunType" factoryName="PowerShell" scriptUrl="debug.ps1" commandOptions="-noprofile -noninteractive" workingDirectory="$ProjectFileDir$" executablePath="pwsh.exe">
-    <envs />
-    <method v="2" />
-  </configuration>
-</component>
