@@ -2,11 +2,14 @@ package com.craftinginterpreters.lox;
 
 import java.util.List;
 
+import com.craftinginterpreters.lox.Stmt.If;
+
 public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private Environment environment = new Environment();
+
     void interpret(List<Stmt> statements) {
         try {
-            for (Stmt statement: statements){
+            for (Stmt statement : statements) {
                 execute(statement);
             }
         } catch (RuntimeError error) {
@@ -14,7 +17,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
     }
 
-    private void execute(Stmt stmt){
+    private void execute(Stmt stmt) {
         stmt.accept(this);
     }
 
@@ -25,12 +28,12 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     void executeBlock(List<Stmt> statements,
-                      Environment environment){
+            Environment environment) {
         Environment previous = this.environment;
         try {
             this.environment = environment;
 
-            for(Stmt statement: statements) {
+            for (Stmt statement : statements) {
                 execute(statement);
             }
         } finally {
@@ -39,7 +42,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     private String stringify(Object object) {
-        if (object == null) return "nil";
+        if (object == null)
+            return "nil";
 
         if (object instanceof Double) {
             String text = object.toString();
@@ -68,7 +72,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Void visitVarStmt(Stmt.Var stmt) {
         Object value = null;
-        if(stmt.initializer != null){
+        if (stmt.initializer != null) {
             value = evaluate(stmt.initializer);
         }
 
