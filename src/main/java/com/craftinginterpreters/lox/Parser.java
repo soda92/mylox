@@ -21,23 +21,23 @@ public class Parser {
         return statements;
     }
 
-    private Stmt declaration(){
+    private Stmt declaration() {
         try {
-            if(match(VAR)){
+            if (match(VAR)) {
                 return varDeclaration();
             }
             return statement();
-        }catch (ParseError error){
+        } catch (ParseError error) {
             synchonize();
             return null;
         }
     }
 
-    private Stmt varDeclaration(){
+    private Stmt varDeclaration() {
         Token name = consume(IDENTIFIER, "Expect variable name.");
 
         Expr initializer = null;
-        if(match(EQUAL)){
+        if (match(EQUAL)) {
             initializer = expression();
         }
 
@@ -46,8 +46,7 @@ public class Parser {
     }
 
     private Stmt statement() {
-        if(match(IF))
-        {
+        if (match(IF)) {
             return ifStatement();
         }
         if(match(PRINT)) {
@@ -67,7 +66,7 @@ public class Parser {
         Stmt thenBranch = statement();
         Stmt elseBranch = null;
 
-        if(match(ELSE)) {
+        if (match(ELSE)) {
             elseBranch = statement();
         }
 
@@ -89,7 +88,7 @@ public class Parser {
     private List<Stmt> block() {
         List<Stmt> statements = new ArrayList<>();
 
-        while(!check(RIGHT_BRACE) && !isAtEnd()) {
+        while (!check(RIGHT_BRACE) && !isAtEnd()) {
             statements.add(declaration());
         }
 
@@ -102,13 +101,13 @@ public class Parser {
     }
 
     private Expr assignment() {
-        Expr expr = equality();
-        if(match(EQUAL)){
+        Expr expr = or();
+        if (match(EQUAL)) {
             Token equals = previous();
             Expr value = assignment();
 
-            if (expr instanceof Expr.Variable){
-                Token name = ((Expr.Variable)expr).name;
+            if (expr instanceof Expr.Variable) {
+                Token name = ((Expr.Variable) expr).name;
                 return new Expr.Assign(name, value);
             }
 
@@ -227,7 +226,7 @@ public class Parser {
             return new Expr.Literal(previous().literal);
         }
 
-        if(match(IDENTIFIER)){
+        if (match(IDENTIFIER)) {
             return new Expr.Variable(previous());
         }
 
