@@ -2,43 +2,17 @@
     "configurations": [
         {
             "type": "java",
-            "name": "GenerateAst",
+            "name": "Lox",
             "request": "launch",
-            "mainClass": "com.craftinginterpreters.tool.GenerateAst",
+            "mainClass": "com.craftinginterpreters.lox.Lox",
             "projectName": "mylox"
         },
         {
             "type": "java",
-            "name": "Launch Test",
+            "name": "GenerateAst",
             "request": "launch",
-            "mainClass": "Test",
-            "projectName": "mylox_48f55fe5"
-        },
-        {
-            "type": "java",
-            "name": "Launch Lox",
-            "request": "launch",
-            "mainClass": "com.craftinginterpreters.lox.Lox",
-            "projectName": "mylox_48f55fe5"
-        },
-        {
-            "type": "java",
-            "name": "Launch Main",
-            "request": "launch",
-            "mainClass": "Main",
-            "projectName": "mylox_48f55fe5"
-        },
-        {
-            "type": "java",
-            "name": "java launch",
-            "request": "attach",
-            "projectName": "proj",
-            "hostName": "127.0.0.1",
-            "port": "5005",
-            "preLaunchTask": "debug",
-            "sourcePaths": [
-                "."
-            ]
+            "mainClass": "com.craftinginterpreters.tool.GenerateAst",
+            "projectName": "mylox"
         }
     ]
 }

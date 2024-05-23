@@ -1,0 +1,5 @@
+org.eclipse.jdt.core.compiler.problem.unusedImport=ignore
+org.eclipse.jdt.core.compiler.problem.missingDefaultCase=ignore
+org.eclipse.jdt.core.compiler.problem.incompleteEnumSwitch=ignore
+org.eclipse.jdt.core.compiler.problem.incompleteEnumSwitchWhenDefaultCase=enabled
+org.eclipse.jdt.core.formatter.keep_then_statement_on_same_line=true
