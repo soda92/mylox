@@ -4,5 +4,6 @@
         "test"
     ],
     "java.configuration.updateBuildConfiguration": "interactive",
-    "editor.wordWrap": "on"
+    "editor.wordWrap": "on",
+    "git.enabled": false
 }
