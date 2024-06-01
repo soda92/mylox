@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.craftinginterpreters.lox.Expr.Call;
 import com.craftinginterpreters.lox.Expr.Logical;
+import com.craftinginterpreters.lox.Stmt.Function;
 import com.craftinginterpreters.lox.Stmt.If;
 import com.craftinginterpreters.lox.Stmt.While;
 
@@ -229,7 +230,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         if (isTruthy(evaluate(stmt.condition))) {
             execute(stmt.thenBranch);
         } else {
-            execute(stmt.elseBranch);
+            if (stmt.elseBranch != null)
+                execute(stmt.elseBranch);
         }
         return null;
     }
@@ -275,5 +277,12 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     "Expected " + function.arity() + " arguments but got " + arguments.size() + ".");
         }
         return function.call(this, arguments);
+    }
+
+    @Override
+    public Void visitFunctionStmt(Function stmt) {
+        LoxFunction function = new LoxFunction(stmt);
+        environment.define(stmt.name.lexeme, function);
+        return null;
     }
 }

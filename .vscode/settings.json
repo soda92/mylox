@@ -3,5 +3,6 @@
         "src/main/java",
         "test"
     ],
-    "java.configuration.updateBuildConfiguration": "interactive"
+    "java.configuration.updateBuildConfiguration": "interactive",
+    "editor.wordWrap": "on"
 }

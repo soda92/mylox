@@ -5,7 +5,9 @@
             "name": "Lox",
             "request": "launch",
             "mainClass": "com.craftinginterpreters.lox.Lox",
-            "projectName": "mylox"
+            "projectName": "mylox",
+            "cwd": "${workspaceFolder}",
+            "args": "function.lox"
         },
         {
             "type": "java",
