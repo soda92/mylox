@@ -3,5 +3,6 @@
         "src/main/java",
         "test"
     ],
+    "git.enabled": false,
     "java.configuration.updateBuildConfiguration": "interactive"
 }
