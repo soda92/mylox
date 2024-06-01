@@ -1,0 +1,12 @@
+fun deco(func) {
+  fun impl() {
+    print "start" + func;
+    func();
+    print "end" + func;
+  }
+  return impl;
+}
+
+fun hello(){print "hello";}
+var h2 = deco(hello);
+h2();

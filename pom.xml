@@ -6,7 +6,7 @@
 
     <groupId>com.craftinginterpreters.lox</groupId>
     <artifactId>mylox</artifactId>
-    <version>1.0</version>
+    <version>function</version>
     <packaging>jar</packaging>
 
     <name>Lox Interpreter</name>

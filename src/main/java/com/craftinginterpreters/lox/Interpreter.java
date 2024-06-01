@@ -166,8 +166,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 if (left instanceof String && right instanceof String) {
                     return left + (String) right;
                 }
-                throw new RuntimeError(expr.operator,
-                        "Operands must be two numbers or two strings.");
+                return left.toString() + right.toString();
             case GREATER:
                 checkNumberOperands(expr.operator, left, right);
                 return (double) left > (double) right;
@@ -281,8 +280,16 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitFunctionStmt(Function stmt) {
-        LoxFunction function = new LoxFunction(stmt);
+        LoxFunction function = new LoxFunction(stmt, environment);
         environment.define(stmt.name.lexeme, function);
         return null;
+    }
+
+    @Override
+    public Void visitReturnStmt(Stmt.Return stmt) {
+        Object value = null;
+        if (stmt.value != null) value = evaluate(stmt.value);
+
+        throw new Return(value);
     }
 }
