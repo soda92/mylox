@@ -4,6 +4,6 @@
         "test"
     ],
     "java.configuration.updateBuildConfiguration": "interactive",
-    "editor.wordWrap": "on",
+    "java.server.launchMode": "LightWeight",
     "git.enabled": false
 }
