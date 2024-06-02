@@ -20,7 +20,5 @@ enum TokenType {
     IF, NIL, OR, PRINT, RETURN, SUPER,
     THIS, TRUE, VAR, WHILE,
 
-    DECO,
-
     EOF
 }

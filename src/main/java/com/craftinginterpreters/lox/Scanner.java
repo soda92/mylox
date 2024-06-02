@@ -31,7 +31,6 @@ public class Scanner {
         keywords.put("true", TRUE);
         keywords.put("var", VAR);
         keywords.put("while", WHILE);
-        keywords.put("@", DECO);
     }
 
     Scanner(String source) {
@@ -66,7 +65,6 @@ public class Scanner {
             case '+' -> addToken(PLUS);
             case ';' -> addToken(SEMICOLON);
             case '*' -> addToken(STAR);
-            case '@' -> addToken(DECO);
             case '!' -> addToken(match('=') ? BANG_EQUAL : BANG);
             case '=' -> addToken(match('=') ? EQUAL_EQUAL : EQUAL);
             case '<' -> addToken(match('=') ? LESS_EQUAL : LESS);

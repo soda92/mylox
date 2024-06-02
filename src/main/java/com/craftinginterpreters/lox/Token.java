@@ -14,7 +14,6 @@ public class Token {
     final Object literal;
     final int line;
 
-    @Override
     public String toString(){
         return type + " "+lexeme + " "+literal;
     }
