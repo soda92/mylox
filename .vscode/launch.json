@@ -7,7 +7,7 @@
             "mainClass": "com.craftinginterpreters.lox.Lox",
             "projectName": "mylox",
             "cwd": "${workspaceFolder}",
-            "args": "function.lox"
+            "args": "decorator2.lox"
         },
         {
             "type": "java",

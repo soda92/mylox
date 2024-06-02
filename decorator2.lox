@@ -1,0 +1,16 @@
+fun deco(func) {
+  fun impl() {
+    print "start" + func;
+    func();
+    print "end" + func;
+  }
+  return impl;
+}
+
+
+fun hello(){print "hello";}
+
+@deco
+fun hello(){print "hello";}
+
+hello();
