@@ -24,9 +24,15 @@ import com.craftinginterpreters.lox.Stmt.While;
 class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     private final Interpreter interpreter;
     private final Stack<Map<String, Boolean>> scopes = new Stack<>();
+    private FunctionType currentFunction = FunctionType.NONE;
 
     Resolver(Interpreter interpreter) {
         this.interpreter = interpreter;
+    }
+
+    private enum FunctionType {
+        NONE,
+        FUNCTION
     }
 
     @Override
@@ -61,32 +67,57 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitExpressionStmt(Expression stmt) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'visitExpressionStmt'");
+        resolve(stmt.expression);
+        return null;
     }
 
     @Override
     public Void visitFunctionStmt(Function stmt) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'visitFunctionStmt'");
+        declare(stmt.name);
+        define(stmt.name);
+
+        resolveFunction(stmt, FunctionType.FUNCTION);
+        return null;
+    }
+
+    private void resolveFunction(Stmt.Function function, FunctionType type) {
+        FunctionType enclosingFunction = currentFunction;
+        currentFunction = type;
+
+        beginScope();
+        for (Token param : function.params) {
+            declare(param);
+            define(param);
+        }
+        resolve(function.body);
+        endScope();
+        currentFunction = enclosingFunction;
     }
 
     @Override
     public Void visitIfStmt(If stmt) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'visitIfStmt'");
+        resolve(stmt.condition);
+        resolve(stmt.thenBranch);
+        if (stmt.elseBranch != null) resolve(stmt.elseBranch);
+        return null;
     }
 
     @Override
     public Void visitPrintStmt(Print stmt) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'visitPrintStmt'");
+        resolve(stmt.expression);
+        return null;
     }
 
     @Override
     public Void visitReturnStmt(Stmt.Return stmt) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'visitReturnStmt'");
+        if (currentFunction == FunctionType.NONE) {
+            Lox.error(stmt.keyword, "Can't return from top-level code.");
+        }
+
+        if (stmt.value != null) {
+            resolve(stmt.value);
+        }
+        return null;
     }
 
     @Override
@@ -103,61 +134,92 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         if (scopes.empty()) return;
 
         Map<String, Boolean> scope = scopes.peek();
+
+        if (scope.containsKey(name.lexeme)) {
+            Lox.error(name,
+                    "Already a variable with this name in this scope");
+        }
+
         scope.put(name.lexeme, false);
+    }
+
+    private void define(Token name) {
+        if (scopes.isEmpty()) return;
+        scopes.peek().put(name.lexeme, true);
     }
 
     @Override
     public Void visitWhileStmt(While stmt) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'visitWhileStmt'");
+        resolve(stmt.condition);
+        resolve(stmt.body);
+        return null;
     }
 
     @Override
     public Void visitAssignExpr(Assign expr) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'visitAssignExpr'");
+        resolve(expr.value);
+        resolveLocal(expr, expr.name);
+        return null;
     }
 
     @Override
     public Void visitBinaryExpr(Binary expr) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'visitBinaryExpr'");
+        resolve(expr.left);
+        resolve(expr.right);
+        return null;
     }
 
     @Override
     public Void visitCallExpr(Call expr) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'visitCallExpr'");
+        resolve(expr.callee);
+        for (Expr argument : expr.arguments) {
+            resolve(argument);
+        }
+        return null;
     }
 
     @Override
     public Void visitGroupingExpr(Grouping expr) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'visitGroupingExpr'");
+        resolve(expr.expression);
+        return null;
     }
 
     @Override
     public Void visitLiteralExpr(Literal expr) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'visitLiteralExpr'");
+        return null;
     }
 
     @Override
     public Void visitLogicalExpr(Logical expr) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'visitLogicalExpr'");
+        resolve(expr.left);
+        resolve(expr.right);
+        return null;
     }
 
     @Override
     public Void visitUnaryExpr(Unary expr) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'visitUnaryExpr'");
+        resolve(expr.right);
+        return null;
     }
 
     @Override
     public Void visitVariableExpr(Variable expr) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'visitVariableExpr'");
+        if (!scopes.isEmpty() &&
+                scopes.peek().get(expr.name.lexeme) == Boolean.FALSE) {
+            Lox.error(expr.name, "Can't read local variable in its own initializer");
+        }
+
+        resolveLocal(expr, expr.name);
+        return null;
+    }
+
+    private void resolveLocal(Expr expr, Token name) {
+        for (int i = scopes.size() - 1; i >= 0; i--) {
+            if (scopes.get(i).containsKey(name.lexeme)) {
+                interpreter.resolve(expr, scopes.size() - 1 - i);
+                return;
+            }
+        }
     }
 
 }

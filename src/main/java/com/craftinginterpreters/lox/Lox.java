@@ -42,7 +42,7 @@ public class Lox {
         InputStreamReader input = new InputStreamReader(System.in);
         BufferedReader reader = new BufferedReader(input);
 
-        for (; ; ) {
+        for (;;) {
             System.out.print("> ");
             String line = reader.readLine();
             if (line == null) {
@@ -64,6 +64,11 @@ public class Lox {
         if (hadError) {
             return;
         }
+
+        Resolver resolver = new Resolver(interpreter);
+        resolver.resolve(statements);
+
+        if (hadError) return;
 
         interpreter.interpret(statements);
     }
