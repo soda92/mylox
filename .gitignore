@@ -29,5 +29,6 @@ out.java
 *#
 /lox
 /target
+/build
 
 /.idea

@@ -5,8 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.craftinginterpreters.lox</groupId>
-    <artifactId>mylox</artifactId>
-    <version>function</version>
+    <artifactId>lox</artifactId>
+    <version>class</version>
     <packaging>jar</packaging>
 
     <name>Lox Interpreter</name>
@@ -16,6 +16,7 @@
         <maven.compiler.source>17</maven.compiler.source>
     </properties>
     <build>
+        <directory>build</directory>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
