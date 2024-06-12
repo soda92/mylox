@@ -8,6 +8,8 @@ import java.util.Map;
 import com.craftinginterpreters.lox.Expr.Call;
 import com.craftinginterpreters.lox.Expr.Get;
 import com.craftinginterpreters.lox.Expr.Logical;
+import com.craftinginterpreters.lox.Expr.Set;
+import com.craftinginterpreters.lox.Expr.This;
 import com.craftinginterpreters.lox.Stmt.Class;
 import com.craftinginterpreters.lox.Stmt.Function;
 import com.craftinginterpreters.lox.Stmt.If;
@@ -322,8 +324,15 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Void visitClassStmt(Class stmt) {
         environment.define(stmt.name.lexeme, null);
-        LoxClass klass = new LoxClass(stmt.name.lexeme);
-        environment.assign(stmt.name, klass);
+
+        Map<String, LoxFunction> methods = new HashMap<>();
+        for(Stmt.Function method: stmt.methods) {
+            LoxFunction function = new LoxFunction(method, environment);
+            methods.put(method.name.lexeme, function);
+        }
+        
+        LoxClass claos = new LoxClass(stmt.name.lexeme, methods);
+        environment.assign(stmt.name, claos);
         return null;
     }
 
@@ -335,5 +344,23 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
 
         throw new RuntimeError(expr.name, "Only instances have properties.");
+    }
+
+    @Override
+    public Object visitSetExpr(Set expr) {
+        Object object = evaluate(expr.object);
+
+        if(!(object instanceof LoxInstance)) {
+            throw new RuntimeError(expr.name, "Only instances have fields.");
+        }
+
+        Object value = evaluate(expr.value);
+        ((LoxInstance)object).set(expr.name, value);
+        return value;
+    }
+
+    @Override
+    public Object visitThisExpr(This expr) {
+        return lookupVariable(expr.keyword, expr);
     }
 }

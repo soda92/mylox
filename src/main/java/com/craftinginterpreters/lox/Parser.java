@@ -38,7 +38,7 @@ public class Parser {
         consume(LEFT_BRACE, "Expect '{' before class body.");
 
         List<Stmt.Function> methods = new ArrayList<>();
-        while(!check(RIGHT_BRACE) && !isAtEnd()) {
+        while (!check(RIGHT_BRACE) && !isAtEnd()) {
             methods.add(function("method"));
         }
 
@@ -51,15 +51,14 @@ public class Parser {
         Token name = consume(IDENTIFIER, "Expect " + kind + " name.");
         consume(LEFT_PAREN, "Expect '(' after " + kind + "name.");
         List<Token> parameters = new ArrayList<>();
-        if(!check(RIGHT_PAREN)) {
+        if (!check(RIGHT_PAREN)) {
             do {
                 if (parameters.size() > 255) {
                     error(peek(), "Can't have more than 255 parameters.");
                 }
 
                 parameters.add(
-                    consume(IDENTIFIER, "Expect parameter name.")
-                );
+                        consume(IDENTIFIER, "Expect parameter name."));
             } while (match(COMMA));
         }
         consume(RIGHT_PAREN, "Expect ')' after parameters.");
@@ -94,7 +93,7 @@ public class Parser {
     private Stmt returnStatement() {
         Token keyword = previous();
         Expr value = null;
-        if(!check(SEMICOLON)) {
+        if (!check(SEMICOLON)) {
             value = expression();
         }
         consume(SEMICOLON, "Expect ';' after return value.");
@@ -205,6 +204,9 @@ public class Parser {
             if (expr instanceof Expr.Variable) {
                 Token name = ((Expr.Variable) expr).name;
                 return new Expr.Assign(name, value);
+            } else if (expr instanceof Expr.Get) {
+                Expr.Get get = (Expr.Get) expr;
+                return new Expr.Set(get.object, get.name, value);
             }
 
             throw error(equals, "Invalid assignment target.");
@@ -335,12 +337,10 @@ public class Parser {
         while (true) {
             if (match(LEFT_PAREN)) {
                 expr = finishCall(expr);
-            } 
-            else if(match(DOT)) {
+            } else if (match(DOT)) {
                 Token name = consume(IDENTIFIER, "Expect property name after '.'.");
                 expr = new Expr.Get(expr, name);
-            }
-            else {
+            } else {
                 break;
             }
         }
@@ -379,6 +379,8 @@ public class Parser {
         if (match(NUMBER, STRING)) {
             return new Expr.Literal(previous().literal);
         }
+
+        if (match(THIS)) return new Expr.This(previous());
 
         if (match(IDENTIFIER)) {
             return new Expr.Variable(previous());
