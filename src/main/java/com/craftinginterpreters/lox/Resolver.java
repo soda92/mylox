@@ -1,31 +1,6 @@
 package com.craftinginterpreters.lox;
 
-import static com.craftinginterpreters.lox.TokenType.FUN;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Stack;
-
-import com.craftinginterpreters.lox.Expr.Assign;
-import com.craftinginterpreters.lox.Expr.Binary;
-import com.craftinginterpreters.lox.Expr.Call;
-import com.craftinginterpreters.lox.Expr.Get;
-import com.craftinginterpreters.lox.Expr.Grouping;
-import com.craftinginterpreters.lox.Expr.Literal;
-import com.craftinginterpreters.lox.Expr.Logical;
-import com.craftinginterpreters.lox.Expr.Set;
-import com.craftinginterpreters.lox.Expr.This;
-import com.craftinginterpreters.lox.Expr.Unary;
-import com.craftinginterpreters.lox.Expr.Variable;
-import com.craftinginterpreters.lox.Stmt.Block;
-import com.craftinginterpreters.lox.Stmt.Class;
-import com.craftinginterpreters.lox.Stmt.Expression;
-import com.craftinginterpreters.lox.Stmt.Function;
-import com.craftinginterpreters.lox.Stmt.If;
-import com.craftinginterpreters.lox.Stmt.Print;
-import com.craftinginterpreters.lox.Stmt.Var;
-import com.craftinginterpreters.lox.Stmt.While;
+import java.util.*;
 
 class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     private final Interpreter interpreter;
@@ -51,7 +26,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     private ClassType currentClass = ClassType.NONE;
 
     @Override
-    public Void visitBlockStmt(Block stmt) {
+    public Void visitBlockStmt(Stmt.Block stmt) {
         beginScope();
         resolve(stmt.statements);
         endScope();
@@ -81,13 +56,13 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Void visitExpressionStmt(Expression stmt) {
+    public Void visitExpressionStmt(Stmt.Expression stmt) {
         resolve(stmt.expression);
         return null;
     }
 
     @Override
-    public Void visitFunctionStmt(Function stmt) {
+    public Void visitFunctionStmt(Stmt.Function stmt) {
         declare(stmt.name);
         define(stmt.name);
 
@@ -110,7 +85,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Void visitIfStmt(If stmt) {
+    public Void visitIfStmt(Stmt.If stmt) {
         resolve(stmt.condition);
         resolve(stmt.thenBranch);
         if (stmt.elseBranch != null) resolve(stmt.elseBranch);
@@ -118,7 +93,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Void visitPrintStmt(Print stmt) {
+    public Void visitPrintStmt(Stmt.Print stmt) {
         resolve(stmt.expression);
         return null;
     }
@@ -140,7 +115,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Void visitVarStmt(Var stmt) {
+    public Void visitVarStmt(Stmt.Var stmt) {
         declare(stmt.name);
         if (stmt.initializer != null) {
             resolve(stmt.initializer);
@@ -168,28 +143,28 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Void visitWhileStmt(While stmt) {
+    public Void visitWhileStmt(Stmt.While stmt) {
         resolve(stmt.condition);
         resolve(stmt.body);
         return null;
     }
 
     @Override
-    public Void visitAssignExpr(Assign expr) {
+    public Void visitAssignExpr(Expr.Assign expr) {
         resolve(expr.value);
         resolveLocal(expr, expr.name);
         return null;
     }
 
     @Override
-    public Void visitBinaryExpr(Binary expr) {
+    public Void visitBinaryExpr(Expr.Binary expr) {
         resolve(expr.left);
         resolve(expr.right);
         return null;
     }
 
     @Override
-    public Void visitCallExpr(Call expr) {
+    public Void visitCallExpr(Expr.Call expr) {
         resolve(expr.callee);
         for (Expr argument : expr.arguments) {
             resolve(argument);
@@ -198,31 +173,31 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Void visitGroupingExpr(Grouping expr) {
+    public Void visitGroupingExpr(Expr.Grouping expr) {
         resolve(expr.expression);
         return null;
     }
 
     @Override
-    public Void visitLiteralExpr(Literal expr) {
+    public Void visitLiteralExpr(Expr.Literal expr) {
         return null;
     }
 
     @Override
-    public Void visitLogicalExpr(Logical expr) {
+    public Void visitLogicalExpr(Expr.Logical expr) {
         resolve(expr.left);
         resolve(expr.right);
         return null;
     }
 
     @Override
-    public Void visitUnaryExpr(Unary expr) {
+    public Void visitUnaryExpr(Expr.Unary expr) {
         resolve(expr.right);
         return null;
     }
 
     @Override
-    public Void visitVariableExpr(Variable expr) {
+    public Void visitVariableExpr(Expr.Variable expr) {
         if (!scopes.isEmpty() &&
                 scopes.peek().get(expr.name.lexeme) == Boolean.FALSE) {
             Lox.error(expr.name, "Can't read local variable in its own initializer");
@@ -233,7 +208,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Void visitGetExpr(Get expr) {
+    public Void visitGetExpr(Expr.Get expr) {
         resolve(expr.object);
         return null;
     }
@@ -248,14 +223,14 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Void visitSetExpr(Set expr) {
+    public Void visitSetExpr(Expr.Set expr) {
         resolve(expr.value);
         resolve(expr.object);
         return null;
     }
 
     @Override
-    public Void visitClassStmt(Class stmt) {
+    public Void visitClassStmt(Stmt.Class stmt) {
         ClassType enclosingClass = currentClass;
         currentClass = ClassType.CLASS;
 
@@ -280,7 +255,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Void visitThisExpr(This expr) {
+    public Void visitThisExpr(Expr.This expr) {
         if (currentClass == ClassType.NONE) {
             Lox.error(expr.keyword,
                     "Can't use 'this' outside of a class");

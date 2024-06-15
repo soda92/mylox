@@ -240,7 +240,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Void visitIfStmt(If stmt) {
+    public Void visitIfStmt(Stmt.If stmt) {
         if (isTruthy(evaluate(stmt.condition))) {
             execute(stmt.thenBranch);
         } else {
@@ -251,7 +251,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Object visitLogicalExpr(Logical expr) {
+    public Object visitLogicalExpr(Expr.Logical expr) {
         Object left = evaluate(expr.left);
 
         if (expr.operator.type == TokenType.OR) {
@@ -264,7 +264,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Void visitWhileStmt(While stmt) {
+    public Void visitWhileStmt(Stmt.While stmt) {
         while (isTruthy(evaluate(stmt.condition))) {
             execute(stmt.body);
         }
@@ -272,7 +272,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Object visitCallExpr(Call expr) {
+    public Object visitCallExpr(Expr.Call expr) {
         Object callee = evaluate(expr.callee);
 
         List<Object> arguments = new ArrayList<>();
@@ -294,7 +294,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Void visitFunctionStmt(Function stmt) {
+    public Void visitFunctionStmt(Stmt.Function stmt) {
         LoxFunction function = new LoxFunction(stmt, environment, false);
         environment.define(stmt.name.lexeme, function);
         return null;
@@ -309,7 +309,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Void visitClassStmt(Class stmt) {
+    public Void visitClassStmt(Stmt.Class stmt) {
         environment.define(stmt.name.lexeme, null);
 
         Map<String, LoxFunction> methods = new HashMap<>();
@@ -325,7 +325,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Object visitGetExpr(Get expr) {
+    public Object visitGetExpr(Expr.Get expr) {
         Object object = evaluate(expr.object);
         if(object instanceof LoxInstance) {
             return ((LoxInstance) object).get(expr.name);
@@ -335,7 +335,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Object visitSetExpr(Set expr) {
+    public Object visitSetExpr(Expr.Set expr) {
         Object object = evaluate(expr.object);
 
         if(!(object instanceof LoxInstance)) {
@@ -348,7 +348,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Object visitThisExpr(This expr) {
+    public Object visitThisExpr(Expr.This expr) {
         return lookupVariable(expr.keyword, expr);
     }
 }
